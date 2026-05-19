@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Class Calendar 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f1eb;
+  --surface: #fffef9;
+  --border: #ddd8cc;
+  --text: #1a1612;
+  --muted: #7a7060;
+  --c1: #1d4ed8; --c1l: #dbeafe; /* S2 Digital Tech */
+  --c2: #7c3aed; --c2l: #ede9fe; /* S2 Game Design */
+  --c3: #b45309; --c3l: #fef3c7; /* S1 Digital Tech */
+  --c4: #be185d; --c4l: #fce7f3; /* S1 Game Design */
+  --c5: #065f46; --c5l: #d1fae5; /* Y9 Digital Tech */
+  --c6: #9f1239; --c6l: #ffe4e6; /* Y8 Digital Tech */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+@media print {
+  body { padding: 0.5rem; background: white; font-size: 11px; }
+  .no-print { display: none !important; }
+  .event { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .month-block { page-break-inside: avoid; margin-bottom: 1rem; }
+}
+header { margin-bottom: 2rem; }
+h1 { font-family: 'DM Serif Display', serif; font-size: 2.5rem; letter-spacing: -0.5px; }
+.subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; font-family: 'DM Mono', monospace; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.5rem; align-items: center;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; font-weight: 500;
+  padding: 0.3rem 0.7rem; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.legend-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.legend-item.dimmed { opacity: 0.35; }
+
+.controls { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+.btn {
+  font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500;
+  padding: 0.4rem 0.9rem; border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.btn:hover { background: var(--border); }
+.btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.divider { width: 1px; height: 24px; background: var(--border); }
+
+.view-cal { display: block; }
+.view-list { display: none; }
+
+.months { display: flex; flex-direction: column; gap: 2rem; }
+.month-block { background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+.month-header {
+  padding: 0.9rem 1.25rem; border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: baseline; gap: 0.75rem;
+}
+.month-name { font-family: 'DM Serif Display', serif; font-size: 1.35rem; }
+.month-yr { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+.month-count { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.day-label {
+  text-align: center; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.day-cell {
+  min-height: 80px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 0.35rem; vertical-align: top;
+}
+.day-cell:nth-child(7n) { border-right: none; }
+.day-cell.empty { background: #f0ece4; }
+.day-cell.today-cell { background: #fffbeb; }
+.day-num {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.25rem;
+}
+.today-cell .day-num {
+  background: var(--text); color: var(--bg); border-radius: 50%;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem;
+}
+.event {
+  font-size: 0.63rem; font-weight: 500; padding: 0.15rem 0.35rem;
+  border-radius: 3px; margin-bottom: 0.15rem; line-height: 1.35;
+  border-left: 3px solid; cursor: default; transition: opacity 0.15s;
+}
+.event:hover { opacity: 0.75; }
+.event.formative { opacity: 0.65; font-style: italic; }
+.event.c1 { background: var(--c1l); color: var(--c1); border-color: var(--c1); }
+.event.c2 { background: var(--c2l); color: var(--c2); border-color: var(--c2); }
+.event.c3 { background: var(--c3l); color: var(--c3); border-color: var(--c3); }
+.event.c4 { background: var(--c4l); color: var(--c4); border-color: var(--c4); }
+.event.c5 { background: var(--c5l); color: var(--c5); border-color: var(--c5); }
+.event.c6 { background: var(--c6l); color: var(--c6); border-color: var(--c6); }
+.event.hidden { display: none; }
+
+/* List view */
+.list-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; background: var(--surface); border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); }
+.list-table th {
+  text-align: left; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); padding: 0.65rem 1rem;
+  border-bottom: 1.5px solid var(--border); background: var(--surface);
+}
+.list-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.list-table tr:last-child td { border-bottom: none; }
+.list-table tr:hover td { background: var(--bg); }
+.list-table tr.hidden { display: none; }
+.pill {
+  display: inline-block; font-size: 0.65rem; font-weight: 600; padding: 0.12rem 0.45rem;
+  border-radius: 20px; white-space: nowrap;
+}
+.pill.c1 { background: var(--c1l); color: var(--c1); }
+.pill.c2 { background: var(--c2l); color: var(--c2); }
+.pill.c3 { background: var(--c3l); color: var(--c3); }
+.pill.c4 { background: var(--c4l); color: var(--c4); }
+.pill.c5 { background: var(--c5l); color: var(--c5); }
+.pill.c6 { background: var(--c6l); color: var(--c6); }
+.type-tag { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); }
+.past-row td { opacity: 0.45; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Class Calendar</h1>
+  <div class="subtitle">2026 — All Due Dates</div>
+</header>
+
+<div class="legend no-print" id="legend">
+  <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-right:0.25rem;">Filter:</span>
+  <div class="legend-item" data-class="c1" onclick="toggleClass('c1',this)">
+    <span class="dot" style="background:var(--c1)"></span> S2 Digital Tech
+  </div>
+  <div class="legend-item" data-class="c2" onclick="toggleClass('c2',this)">
+    <span class="dot" style="background:var(--c2)"></span> S2 Game Design
+  </div>
+  <div class="legend-item" data-class="c3" onclick="toggleClass('c3',this)">
+    <span class="dot" style="background:var(--c3)"></span> S1 Digital Tech
+  </div>
+  <div class="legend-item" data-class="c4" onclick="toggleClass('c4',this)">
+    <span class="dot" style="background:var(--c4)"></span> S1 Game Design
+  </div>
+  <div class="legend-item" data-class="c5" onclick="toggleClass('c5',this)">
+    <span class="dot" style="background:var(--c5)"></span> Y9 Digital Tech
+  </div>
+  <div class="legend-item" data-class="c6" onclick="toggleClass('c6',this)">
+    <span class="dot" style="background:var(--c6)"></span> Y8 Digital Tech
+  </div>
+</div>
+
+<div class="controls no-print">
+  <button class="btn active" id="btnCal" onclick="setView('cal')">📅 Calendar</button>
+  <button class="btn" id="btnList" onclick="setView('list')">📋 List</button>
+  <div class="divider"></div>
+  <button class="btn" onclick="window.print()">🖨️ Print</button>
+</div>
+
+<!-- ========== CALENDAR VIEW ========== -->
+<div class="view-cal" id="viewCal">
+<div class="months" id="months"></div>
+</div>
+
+<!-- ========== LIST VIEW ========== -->
+<div class="view-list" id="viewList">
+  <table class="list-table">
+    <thead>
+      <tr>
+        <th>Due Date</th>
+        <th>Task</th>
+        <th>Class</th>
+        <th>Type</th>
+      </tr>
+    </thead>
+    <tbody id="listBody"></tbody>
+  </table>
+</div>
+
+<script>
+// ============================================================
+// ALL EVENTS — edit due dates here if needed
+// format: { date: 'YYYY-MM-DD', title: 'Task name', cls: 'cN', type: 'assignment'|'formative'|'other' }
+// ============================================================
+const events = [
+  // --- S2 Digital Tech (c1) ---
+  { date:'2026-02-11', title:'Research & Ethics (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-02-22', title:'AT1: Research & Ethics', cls:'c1', type:'assignment' },
+  { date:'2026-03-04', title:'Traffic Light', cls:'c1', type:'other' },
+  { date:'2026-03-06', title:'Collaborative Data Analytics (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-03-22', title:'AT1: Collaborative Data Analytics', cls:'c1', type:'assignment' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c1', type:'other' },
+  { date:'2026-05-11', title:'Programming Skills (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-05-20', title:'AT1: Programming Skills', cls:'c1', type:'assignment' },
+  { date:'2026-06-22', title:'Iterative Project Dev (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-07-05', title:'AT1: Iterative Project Dev', cls:'c1', type:'assignment' },
+  { date:'2026-08-30', title:'Individual Digital Solution (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-09-13', title:'AT3: Individual Digital Solution', cls:'c1', type:'assignment' },
+  { date:'2026-10-18', title:'Collaborative Project (Draft)', cls:'c1', type:'formative' },
+  { date:'2026-10-25', title:'AT2: Collaborative Project', cls:'c1', type:'assignment' },
+
+  // --- S2 Game Design (c2) ---
+  { date:'2026-02-06', title:'Intro to Sideshow Scene (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-03-04', title:'Traffic Light', cls:'c2', type:'other' },
+  { date:'2026-03-10', title:'Skills Task 1: Sideshow Scene (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-03-22', title:'AT1: Skills Task 1 - Sideshow Scene', cls:'c2', type:'assignment' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c2', type:'other' },
+  { date:'2026-05-06', title:'Unreal Engine Tutorials (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-05-19', title:'AT1: Skills Task 2 - Unreal Engine', cls:'c2', type:'assignment' },
+  { date:'2026-05-21', title:'Part A: Materials Investigation (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-06-26', title:'AT3 Part A: Materials Investigation', cls:'c2', type:'assignment' },
+  { date:'2026-06-28', title:'Sec 1: Investigation & Design (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-07-26', title:'AT3 Part B: Issues Exploration (Draft)', cls:'c2', type:'formative' },
+  { date:'2026-08-02', title:'AT2 Sec 1: Investigation & Design', cls:'c2', type:'formative' },
+  { date:'2026-08-09', title:'AT3 Part B: Issues Exploration', cls:'c2', type:'assignment' },
+  { date:'2026-09-20', title:'AT2 Section Two DRAFT', cls:'c2', type:'formative' },
+  { date:'2026-10-18', title:'AT2 Section Three DRAFT', cls:'c2', type:'formative' },
+  { date:'2026-10-25', title:'AT2: Solutions Realisation', cls:'c2', type:'assignment' },
+
+  // --- S1 Digital Tech (c3) ---
+  { date:'2026-02-24', title:'Project Skills 1 (Draft)', cls:'c3', type:'formative' },
+  { date:'2026-03-04', title:'Traffic Light', cls:'c3', type:'other' },
+  { date:'2026-03-08', title:'AT1: Project Skills 1', cls:'c3', type:'assignment' },
+  { date:'2026-03-17', title:'Exploring Innovation (Draft)', cls:'c3', type:'formative' },
+  { date:'2026-03-29', title:'AT2: Project Skills 2 - Exploring Innovation', cls:'c3', type:'assignment' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c3', type:'other' },
+  { date:'2026-06-16', title:'Digital Solution 1 (Draft)', cls:'c3', type:'formative' },
+  { date:'2026-06-23', title:'Digital Solution 1: Web App/Game', cls:'c3', type:'assignment' },
+
+  // --- S1 Game Design (c4) ---
+  { date:'2026-02-25', title:'Traffic Light', cls:'c4', type:'other' },
+  { date:'2026-03-04', title:'Traffic Light', cls:'c4', type:'other' },
+  { date:'2026-03-12', title:'AT1: Sorcerers Room (Draft)', cls:'c4', type:'formative' },
+  { date:'2026-03-22', title:'AT1: Skills Task - Sorcerers Room', cls:'c4', type:'assignment' },
+  { date:'2026-03-26', title:'Learn GDScript (Formative)', cls:'c4', type:'formative' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c4', type:'other' },
+  { date:'2026-05-05', title:'AT1: Skills Task 2 - Your First 2D Game (Draft)', cls:'c4', type:'formative' },
+  { date:'2026-05-19', title:'AT1: Skills Task 2 - Your First 2D Game', cls:'c4', type:'assignment' },
+  { date:'2026-05-21', title:'AT2 Part 1: Design Development (Draft)', cls:'c4', type:'formative' },
+  { date:'2026-05-31', title:'AT2 Part 1: Design Development', cls:'c4', type:'assignment' },
+  { date:'2026-06-21', title:'AT2 Part 2: Solution Realisation (Draft)', cls:'c4', type:'formative' },
+  { date:'2026-06-25', title:'AT2 Part 2: Solution Realisation', cls:'c4', type:'assignment' },
+
+  // --- Y9 Digital Tech (c5) ---
+  { date:'2026-03-06', title:'Term 1 Reports', cls:'c5', type:'other' },
+  { date:'2026-03-22', title:'Task 1: Client Website Dev', cls:'c5', type:'assignment' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c5', type:'other' },
+  { date:'2026-05-24', title:'Task 2: Wearable Technologies (Arduino)', cls:'c5', type:'assignment' },
+  { date:'2026-06-02', title:'Task 3: Planning & Development', cls:'c5', type:'assignment' },
+  { date:'2026-06-23', title:'Task 4 Part A: Code', cls:'c5', type:'assignment' },
+  { date:'2026-06-25', title:'Task 4 Part B: Evaluation', cls:'c5', type:'assignment' },
+
+  // --- Y8 Digital Tech (c6) ---
+  { date:'2026-01-04', title:'Introduce Yourself', cls:'c6', type:'formative' },
+  { date:'2026-01-23', title:'Task 1: Design Cycle & Evaluation (Due)', cls:'c6', type:'assignment' },
+  { date:'2026-03-23', title:'Task 2: Cotton Investigation', cls:'c6', type:'assignment' },
+  { date:'2026-03-23', title:'Yr 8 Textiles Booklet', cls:'c6', type:'formative' },
+  { date:'2026-04-06', title:'Term 1 Reports', cls:'c6', type:'other' },
+  { date:'2026-06-05', title:'Task 1: Microbit Traffic Light System', cls:'c6', type:'assignment' },
+  { date:'2026-06-14', title:'Task 2 Part A: Tutorials & Planning', cls:'c6', type:'assignment' },
+  { date:'2026-06-22', title:'Task 2 Part B: Game & Evaluation', cls:'c6', type:'assignment' },
+];
+
+const classNames = {
+  c1: 'S2 Digital Tech',
+  c2: 'S2 Game Design',
+  c3: 'S1 Digital Tech',
+  c4: 'S1 Game Design',
+  c5: 'Y9 Digital Tech',
+  c6: 'Y8 Digital Tech',
+};
+
+const hiddenClasses = new Set();
+const today = new Date();
+today.setHours(0,0,0,0);
+
+function toggleClass(cls, el) {
+  if (hiddenClasses.has(cls)) {
+    hiddenClasses.delete(cls);
+    el.classList.remove('dimmed');
+  } else {
+    hiddenClasses.add(cls);
+    el.classList.add('dimmed');
+  }
+  document.querySelectorAll('.event.' + cls).forEach(e => e.classList.toggle('hidden', hiddenClasses.has(cls)));
+  document.querySelectorAll('tr[data-cls="' + cls + '"]').forEach(r => r.classList.toggle('hidden', hiddenClasses.has(cls)));
+}
+
+function setView(v) {
+  document.getElementById('viewCal').style.display = v === 'cal' ? 'block' : 'none';
+  document.getElementById('viewList').style.display = v === 'list' ? 'block' : 'none';
+  document.getElementById('btnCal').classList.toggle('active', v === 'cal');
+  document.getElementById('btnList').classList.toggle('active', v === 'list');
+}
+
+// Build calendar months from Jan 2026 to Oct 2026
+function buildCalendar() {
+  const monthsEl = document.getElementById('months');
+  const months = [
+    [2026,0,'January'],[2026,1,'February'],[2026,2,'March'],[2026,3,'April'],
+    [2026,4,'May'],[2026,5,'June'],[2026,6,'July'],[2026,7,'August'],
+    [2026,8,'September'],[2026,9,'October'],[2026,10,'November']
+  ];
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  months.forEach(([yr, mo, name]) => {
+    const monthEvents = events.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === yr && d.getMonth() === mo;
+    });
+
+    const block = document.createElement('div');
+    block.className = 'month-block';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'month-header';
+    hdr.innerHTML = `<span class="month-name">${name}</span><span class="month-yr">${yr}</span><span class="month-count">${monthEvents.length} due date${monthEvents.length!==1?'s':''}</span>`;
+    block.appendChild(hdr);
+
+    // Grid
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    days.forEach(d => {
+      const lbl = document.createElement('div');
+      lbl.className = 'day-label';
+      lbl.textContent = d;
+      grid.appendChild(lbl);
+    });
+
+    const firstDay = new Date(yr, mo, 1);
+    // JS: 0=Sun..6=Sat. We want Mon=0 offset
+    let startOffset = firstDay.getDay() - 1;
+    if (startOffset < 0) startOffset = 6;
+
+    for (let i = 0; i < startOffset; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'day-cell empty';
+      grid.appendChild(empty);
+    }
+
+    const daysInMonth = new Date(yr, mo+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cell = document.createElement('div');
+      const thisDate = new Date(yr, mo, d);
+      const isToday = thisDate.getTime() === today.getTime();
+      cell.className = 'day-cell' + (isToday ? ' today-cell' : '');
+
+      const numEl = document.createElement('div');
+      numEl.className = 'day-num';
+      numEl.textContent = d;
+      cell.appendChild(numEl);
+
+      const dateStr = `${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayEvents = events.filter(e => e.date === dateStr);
+      dayEvents.forEach(ev => {
+        const evEl = document.createElement('div');
+        evEl.className = `event ${ev.cls}${ev.type==='formative'?' formative':''}`;
+        evEl.textContent = ev.title;
+        evEl.title = `${classNames[ev.cls]} — ${ev.type}`;
+        cell.appendChild(evEl);
+      });
+
+      grid.appendChild(cell);
+    }
+
+    block.appendChild(grid);
+    monthsEl.appendChild(block);
+  });
+}
+
+// Build list view
+function buildList() {
+  const tbody = document.getElementById('listBody');
+  const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
+  sorted.forEach(ev => {
+    const d = new Date(ev.date);
+    const isPast = d < today;
+    const tr = document.createElement('tr');
+    tr.dataset.cls = ev.cls;
+    if (isPast) tr.className = 'past-row';
+    const dateStr = d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+    tr.innerHTML = `
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.8rem;">${dateStr}</span></td>
+      <td>${ev.title}</td>
+      <td><span class="pill ${ev.cls}">${classNames[ev.cls]}</span></td>
+      <td><span class="type-tag">${ev.type}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+buildCalendar();
+buildList();
+</script>
+</body>
+</html>
