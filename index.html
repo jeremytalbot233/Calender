@@ -182,18 +182,12 @@ h1 { font-family: 'DM Serif Display', serif; font-size: 2.5rem; letter-spacing: 
 </div>
 
 <script>
-// ============================================================
-// ALL EVENTS — edit due dates here if needed
-// format: { date: 'YYYY-MM-DD', title: 'Task name', cls: 'cN', type: 'assignment'|'formative'|'other' }
-// ============================================================
 const events = [
   // --- S2 Digital Tech (c1) ---
   { date:'2026-02-11', title:'Research & Ethics (Draft)', cls:'c1', type:'formative' },
   { date:'2026-02-22', title:'AT1: Research & Ethics', cls:'c1', type:'assignment' },
-  { date:'2026-03-04', title:'Traffic Light', cls:'c1', type:'other' },
   { date:'2026-03-06', title:'Collaborative Data Analytics (Draft)', cls:'c1', type:'formative' },
   { date:'2026-03-22', title:'AT1: Collaborative Data Analytics', cls:'c1', type:'assignment' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c1', type:'other' },
   { date:'2026-05-11', title:'Programming Skills (Draft)', cls:'c1', type:'formative' },
   { date:'2026-05-20', title:'AT1: Programming Skills', cls:'c1', type:'assignment' },
   { date:'2026-06-22', title:'Iterative Project Dev (Draft)', cls:'c1', type:'formative' },
@@ -203,12 +197,19 @@ const events = [
   { date:'2026-10-18', title:'Collaborative Project (Draft)', cls:'c1', type:'formative' },
   { date:'2026-10-25', title:'AT2: Collaborative Project', cls:'c1', type:'assignment' },
 
+  // --- S2 Digital Tech — Aiden, Ayan, Tygh, Mathias, Darcy (extended) ---
+  { date:'2026-05-24', title:'AT1 T3 Draft (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'formative' },
+  { date:'2026-07-06', title:'AT2 T4 Draft (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'formative' },
+  { date:'2026-07-19', title:'AT1 T4 Final (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'assignment' },
+  { date:'2026-09-13', title:'AT3 Draft (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'formative' },
+  { date:'2026-09-27', title:'AT3 Final (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'assignment' },
+  { date:'2026-10-25', title:'AT2 Draft (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'formative' },
+  { date:'2026-11-01', title:'AT2 Final (Aiden/Ayan/Tygh/Mathias/Darcy)', cls:'c1', type:'assignment' },
+
   // --- S2 Game Design (c2) ---
   { date:'2026-02-06', title:'Intro to Sideshow Scene (Draft)', cls:'c2', type:'formative' },
-  { date:'2026-03-04', title:'Traffic Light', cls:'c2', type:'other' },
   { date:'2026-03-10', title:'Skills Task 1: Sideshow Scene (Draft)', cls:'c2', type:'formative' },
   { date:'2026-03-22', title:'AT1: Skills Task 1 - Sideshow Scene', cls:'c2', type:'assignment' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c2', type:'other' },
   { date:'2026-05-06', title:'Unreal Engine Tutorials (Draft)', cls:'c2', type:'formative' },
   { date:'2026-05-19', title:'AT1: Skills Task 2 - Unreal Engine', cls:'c2', type:'assignment' },
   { date:'2026-05-21', title:'Part A: Materials Investigation (Draft)', cls:'c2', type:'formative' },
@@ -223,21 +224,16 @@ const events = [
 
   // --- S1 Digital Tech (c3) ---
   { date:'2026-02-24', title:'Project Skills 1 (Draft)', cls:'c3', type:'formative' },
-  { date:'2026-03-04', title:'Traffic Light', cls:'c3', type:'other' },
   { date:'2026-03-08', title:'AT1: Project Skills 1', cls:'c3', type:'assignment' },
   { date:'2026-03-17', title:'Exploring Innovation (Draft)', cls:'c3', type:'formative' },
   { date:'2026-03-29', title:'AT2: Project Skills 2 - Exploring Innovation', cls:'c3', type:'assignment' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c3', type:'other' },
   { date:'2026-06-16', title:'Digital Solution 1 (Draft)', cls:'c3', type:'formative' },
   { date:'2026-06-23', title:'Digital Solution 1: Web App/Game', cls:'c3', type:'assignment' },
 
   // --- S1 Game Design (c4) ---
-  { date:'2026-02-25', title:'Traffic Light', cls:'c4', type:'other' },
-  { date:'2026-03-04', title:'Traffic Light', cls:'c4', type:'other' },
   { date:'2026-03-12', title:'AT1: Sorcerers Room (Draft)', cls:'c4', type:'formative' },
   { date:'2026-03-22', title:'AT1: Skills Task - Sorcerers Room', cls:'c4', type:'assignment' },
   { date:'2026-03-26', title:'Learn GDScript (Formative)', cls:'c4', type:'formative' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c4', type:'other' },
   { date:'2026-05-05', title:'AT1: Skills Task 2 - Your First 2D Game (Draft)', cls:'c4', type:'formative' },
   { date:'2026-05-19', title:'AT1: Skills Task 2 - Your First 2D Game', cls:'c4', type:'assignment' },
   { date:'2026-05-21', title:'AT2 Part 1: Design Development (Draft)', cls:'c4', type:'formative' },
@@ -246,9 +242,7 @@ const events = [
   { date:'2026-06-25', title:'AT2 Part 2: Solution Realisation', cls:'c4', type:'assignment' },
 
   // --- Y9 Digital Tech (c5) ---
-  { date:'2026-03-06', title:'Term 1 Reports', cls:'c5', type:'other' },
   { date:'2026-03-22', title:'Task 1: Client Website Dev', cls:'c5', type:'assignment' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c5', type:'other' },
   { date:'2026-05-24', title:'Task 2: Wearable Technologies (Arduino)', cls:'c5', type:'assignment' },
   { date:'2026-06-02', title:'Task 3: Planning & Development', cls:'c5', type:'assignment' },
   { date:'2026-06-23', title:'Task 4 Part A: Code', cls:'c5', type:'assignment' },
@@ -259,7 +253,6 @@ const events = [
   { date:'2026-01-23', title:'Task 1: Design Cycle & Evaluation (Due)', cls:'c6', type:'assignment' },
   { date:'2026-03-23', title:'Task 2: Cotton Investigation', cls:'c6', type:'assignment' },
   { date:'2026-03-23', title:'Yr 8 Textiles Booklet', cls:'c6', type:'formative' },
-  { date:'2026-04-06', title:'Term 1 Reports', cls:'c6', type:'other' },
   { date:'2026-06-05', title:'Task 1: Microbit Traffic Light System', cls:'c6', type:'assignment' },
   { date:'2026-06-14', title:'Task 2 Part A: Tutorials & Planning', cls:'c6', type:'assignment' },
   { date:'2026-06-22', title:'Task 2 Part B: Game & Evaluation', cls:'c6', type:'assignment' },
@@ -297,7 +290,6 @@ function setView(v) {
   document.getElementById('btnList').classList.toggle('active', v === 'list');
 }
 
-// Build calendar months from Jan 2026 to Oct 2026
 function buildCalendar() {
   const monthsEl = document.getElementById('months');
   const months = [
@@ -316,13 +308,11 @@ function buildCalendar() {
     const block = document.createElement('div');
     block.className = 'month-block';
 
-    // Header
     const hdr = document.createElement('div');
     hdr.className = 'month-header';
     hdr.innerHTML = `<span class="month-name">${name}</span><span class="month-yr">${yr}</span><span class="month-count">${monthEvents.length} due date${monthEvents.length!==1?'s':''}</span>`;
     block.appendChild(hdr);
 
-    // Grid
     const grid = document.createElement('div');
     grid.className = 'cal-grid';
 
@@ -334,7 +324,6 @@ function buildCalendar() {
     });
 
     const firstDay = new Date(yr, mo, 1);
-    // JS: 0=Sun..6=Sat. We want Mon=0 offset
     let startOffset = firstDay.getDay() - 1;
     if (startOffset < 0) startOffset = 6;
 
@@ -361,42 +350,3 @@ function buildCalendar() {
       dayEvents.forEach(ev => {
         const evEl = document.createElement('div');
         evEl.className = `event ${ev.cls}${ev.type==='formative'?' formative':''}`;
-        evEl.textContent = ev.title;
-        evEl.title = `${classNames[ev.cls]} — ${ev.type}`;
-        cell.appendChild(evEl);
-      });
-
-      grid.appendChild(cell);
-    }
-
-    block.appendChild(grid);
-    monthsEl.appendChild(block);
-  });
-}
-
-// Build list view
-function buildList() {
-  const tbody = document.getElementById('listBody');
-  const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
-  sorted.forEach(ev => {
-    const d = new Date(ev.date);
-    const isPast = d < today;
-    const tr = document.createElement('tr');
-    tr.dataset.cls = ev.cls;
-    if (isPast) tr.className = 'past-row';
-    const dateStr = d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
-    tr.innerHTML = `
-      <td><span style="font-family:'DM Mono',monospace;font-size:0.8rem;">${dateStr}</span></td>
-      <td>${ev.title}</td>
-      <td><span class="pill ${ev.cls}">${classNames[ev.cls]}</span></td>
-      <td><span class="type-tag">${ev.type}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-buildCalendar();
-buildList();
-</script>
-</body>
-</html>
