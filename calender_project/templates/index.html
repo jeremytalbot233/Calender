@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Class Calendar 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f1eb;
+  --surface: #fffef9;
+  --border: #ddd8cc;
+  --text: #1a1612;
+  --muted: #7a7060;
+  --drawer-width: 300px;
+
+  /* S2 Digital Tech — light blue */
+  --c1: rgb(100,160,190);
+  --c1l: rgb(173,216,230);
+  /* S2 Game Design — thistle purple */
+  --c2: rgb(150,110,150);
+  --c2l: rgb(216,191,216);
+  /* S1 Digital Tech — peach orange */
+  --c3: rgb(200,120,50);
+  --c3l: rgb(255,204,153);
+  /* S1 Game Design — thistle purple */
+  --c4: rgb(150,110,150);
+  --c4l: rgb(216,191,216);
+  /* Y9 Digital Tech — light green */
+  --c5: rgb(60,160,60);
+  --c5l: rgb(144,238,144);
+  /* Y8 Digital Tech — light pink */
+  --c6: rgb(200,100,120);
+  --c6l: rgb(255,182,193);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Layout ── */
+.app-wrapper { display: flex; min-height: 100vh; }
+.main-content { flex: 1; padding: 2rem; min-width: 0; transition: margin-right 0.3s ease; }
+.main-content.drawer-open { margin-right: var(--drawer-width); }
+
+/* ── Drawer ── */
+.drawer {
+  position: fixed; top: 0; right: calc(-1 * var(--drawer-width));
+  width: var(--drawer-width); height: 100vh;
+  background: var(--surface); border-left: 1.5px solid var(--border);
+  transition: right 0.3s ease; z-index: 50;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+}
+.drawer.open { right: 0; }
+.drawer-header {
+  padding: 1.25rem; border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.drawer-header h2 { font-family: 'DM Serif Display', serif; font-size: 1.1rem; }
+.drawer-close {
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  font-size: 1.1rem; padding: 0.2rem 0.4rem; border-radius: 4px; transition: background 0.15s;
+}
+.drawer-close:hover { background: var(--border); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.drawer-toggle {
+  position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+  z-index: 51; background: var(--text); color: var(--bg);
+  border: none; cursor: pointer; padding: 0.75rem 0.4rem;
+  border-radius: 8px 0 0 8px; font-size: 0.7rem;
+  font-family: 'DM Mono', monospace; font-weight: 600; letter-spacing: 0.05em;
+  writing-mode: vertical-rl; text-orientation: mixed;
+  transition: right 0.3s ease, background 0.15s;
+}
+.drawer-toggle.open { right: var(--drawer-width); }
+.drawer-toggle:hover { background: var(--muted); }
+
+/* ── Upcoming cards ── */
+.upcoming-card { border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.upcoming-card-header {
+  padding: 0.5rem 0.75rem; display: flex; align-items: center;
+  gap: 0.5rem; font-size: 0.72rem; font-weight: 600;
+}
+.upcoming-card-header .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.upcoming-card-body { padding: 0.6rem 0.75rem; background: var(--bg); cursor: pointer; }
+.upcoming-card-body:hover { background: var(--border); }
+.upcoming-none { font-size: 0.75rem; color: var(--muted); font-style: italic; padding: 0.6rem 0.75rem; background: var(--bg); }
+.upcoming-title { font-size: 0.8rem; font-weight: 500; margin-bottom: 0.25rem; line-height: 1.3; }
+.upcoming-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.upcoming-date { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+.upcoming-days { font-size: 0.65rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 20px; }
+.upcoming-days.soon  { background: rgb(255,204,153); color: rgb(200,120,50); }
+.upcoming-days.very-soon { background: rgb(255,182,193); color: rgb(200,100,120); }
+.upcoming-days.ok    { background: rgb(144,238,144); color: rgb(60,160,60); }
+.upcoming-type { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--muted); }
+
+/* ── Header ── */
+header { margin-bottom: 2rem; }
+h1 { font-family: 'DM Serif Display', serif; font-size: 2.5rem; letter-spacing: -0.5px; }
+.subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; font-family: 'DM Mono', monospace; }
+
+/* ── Legend ── */
+.legend { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.5rem; align-items: center; }
+.legend-item {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; font-weight: 500; padding: 0.3rem 0.7rem;
+  border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--surface); cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.legend-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.legend-item.dimmed { opacity: 0.35; }
+
+/* ── Controls ── */
+.controls { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+.btn {
+  font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500;
+  padding: 0.4rem 0.9rem; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text); border-radius: 6px;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn:hover { background: var(--border); }
+.btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.danger { border-color: rgb(200,100,120); color: rgb(200,100,120); }
+.btn.danger:hover { background: rgb(255,182,193); }
+.divider { width: 1px; height: 24px; background: var(--border); }
+
+/* ── Month block ── */
+.months { display: flex; flex-direction: column; gap: 2rem; }
+.month-block {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; overflow: hidden; position: relative;
+}
+.month-header {
+  padding: 0.9rem 1.25rem; border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: baseline; gap: 0.75rem;
+}
+.month-name { font-family: 'DM Serif Display', serif; font-size: 1.35rem; }
+.month-yr   { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+.month-count { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+
+/* ── Calendar grid ── */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.day-label {
+  text-align: center; font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+  padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+}
+.day-cell {
+  min-height: 80px; border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border); padding: 0.35rem;
+  vertical-align: top; cursor: pointer; transition: background 0.1s;
+}
+.day-cell:nth-child(7n) { border-right: none; }
+.day-cell.empty { background: #f0ece4; cursor: default; }
+.day-cell.weekend { background: #ece8e0; }
+.day-cell.today-cell { background: #fffbeb; }
+.day-cell:not(.empty):hover { background: #f0ece4; }
+.day-num {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between;
+}
+.day-num-inner { }
+.today-cell .day-num-inner {
+  background: var(--text); color: var(--bg); border-radius: 50%;
+  width: 20px; height: 20px; display: flex; align-items: center;
+  justify-content: center; font-size: 0.68rem;
+}
+.add-hint {
+  font-size: 0.55rem; color: var(--muted); opacity: 0;
+  transition: opacity 0.15s; pointer-events: none;
+  font-family: 'DM Mono', monospace;
+}
+.day-cell:not(.empty):hover .add-hint { opacity: 1; }
+
+/* ── Events ── */
+.event {
+  font-size: 0.63rem; font-weight: 600; padding: 0.18rem 0.4rem;
+  border-radius: 3px; margin-bottom: 0.15rem; line-height: 1.35;
+  cursor: pointer; transition: opacity 0.15s;
+  border: none;
+}
+.event:hover { opacity: 0.8; }
+.event.formative { opacity: 0.7; font-style: italic; font-weight: 500; }
+.event.c1 { background: var(--c1l); color: var(--c1); }
+.event.c2 { background: var(--c2l); color: var(--c2); }
+.event.c3 { background: var(--c3l); color: var(--c3); }
+.event.c4 { background: var(--c4l); color: var(--c4); }
+.event.c5 { background: var(--c5l); color: var(--c5); }
+.event.c6 { background: var(--c6l); color: var(--c6); }
+.event.hidden { display: none; }
+
+/* ── Term banner ── */
+.term-banner {
+  font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.25rem 1.25rem; border-bottom: 1px solid var(--border);
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.term-banner.holiday { background: #f0ece4; color: var(--muted); font-style: italic; }
+.week-tag {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+  display: block; margin-bottom: 1px;
+}
+
+/* ── List view ── */
+.list-table {
+  width: 100%; border-collapse: collapse; font-size: 0.83rem;
+  background: var(--surface); border-radius: 10px; overflow: hidden;
+  border: 1.5px solid var(--border);
+}
+.list-table th {
+  text-align: left; font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+  padding: 0.65rem 1rem; border-bottom: 1.5px solid var(--border); background: var(--surface);
+}
+.list-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.list-table tr:last-child td { border-bottom: none; }
+.list-table tr:hover td { background: var(--bg); }
+.list-table tr.hidden { display: none; }
+.pill {
+  display: inline-block; font-size: 0.65rem; font-weight: 600;
+  padding: 0.12rem 0.45rem; border-radius: 20px; white-space: nowrap;
+}
+.pill.c1 { background: var(--c1l); color: var(--c1); }
+.pill.c2 { background: var(--c2l); color: var(--c2); }
+.pill.c3 { background: var(--c3l); color: var(--c3); }
+.pill.c4 { background: var(--c4l); color: var(--c4); }
+.pill.c5 { background: var(--c5l); color: var(--c5); }
+.pill.c6 { background: var(--c6l); color: var(--c6); }
+.type-tag { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); }
+.past-row td { opacity: 0.45; }
+
+/* ── Modal ── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+}
+.modal-backdrop.hidden { display: none; }
+.modal {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 1.75rem; width: 420px; max-width: 95vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.modal h2 { font-family: 'DM Serif Display', serif; font-size: 1.3rem; margin-bottom: 1.25rem; }
+.field { margin-bottom: 1rem; }
+.field label {
+  display: block; font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem;
+}
+.field input, .field select {
+  width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid var(--border);
+  border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+  background: var(--bg); color: var(--text);
+}
+.field input:focus, .field select:focus { outline: none; border-color: var(--text); }
+.modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+.modal-actions .left { margin-right: auto; }
+
+/* ══════════════════════════════════════
+   PRINT STYLES
+══════════════════════════════════════ */
+@media print {
+  body { padding: 0; background: white; font-size: 10px; }
+  .no-print { display: none !important; }
+  .drawer, .drawer-toggle { display: none !important; }
+  .main-content { margin-right: 0 !important; padding: 0.5rem; }
+  .app-wrapper { display: block; }
+
+  .months { gap: 1.25rem; }
+  .month-block {
+    page-break-inside: avoid;
+    margin-bottom: 1.25rem;
+    overflow: visible;
+    border-radius: 6px;
+  }
+
+  /* Dark filled day headers */
+  .day-label {
+    background: #2c2416 !important;
+    color: #f4f1eb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 0.58rem;
+    padding: 0.4rem 0;
+  }
+
+  /* Weekend column shading — columns 6 and 7 */
+  .day-cell:nth-child(7n+6),
+  .day-cell:nth-child(7n+7) {
+    background: #e8e4dc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Solid filled event chips */
+  .event {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    border: none !important;
+    border-radius: 3px !important;
+    font-weight: 700 !important;
+    color: #1a1612 !important;
+    opacity: 1 !important;
+    margin-bottom: 0.2rem;
+  }
+  .event.c1 { background: rgb(173,216,230) !important; }
+  .event.c2 { background: rgb(216,191,216) !important; }
+  .event.c3 { background: rgb(255,204,153) !important; }
+  .event.c4 { background: rgb(216,191,216) !important; }
+  .event.c5 { background: rgb(144,238,144) !important; }
+  .event.c6 { background: rgb(255,182,193) !important; }
+  .event.formative { opacity: 0.7 !important; font-style: italic !important; font-weight: 500 !important; }
+
+  /* Watermark month name */
+  .month-name-watermark {
+    display: block !important;
+    position: absolute;
+    left: -2.5rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: center center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 4rem;
+    color: rgba(0,0,0,0.05);
+    font-weight: 900;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 0;
+    letter-spacing: -1px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Legend as compact color key at bottom */
+  .print-legend {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ddd;
+    font-size: 0.65rem;
+  }
+  .print-legend-item {
+    display: flex; align-items: center; gap: 0.3rem;
+  }
+  .print-legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .add-hint { display: none !important; }
+  .day-cell { min-height: 60px; }
+}
+
+/* Hide watermark on screen */
+.month-name-watermark { display: none; }
+.print-legend { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app-wrapper">
+  <div class="main-content" id="mainContent">
+
+    <header>
+      <h1>Class Calendar</h1>
+      <div class="subtitle">2026 — All Due Dates</div>
+    </header>
+
+    <div class="legend no-print" id="legend">
+      <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-right:0.25rem;">Filter:</span>
+      <div class="legend-item" data-class="c1" onclick="toggleClass('c1',this)"><span class="dot" style="background:var(--c1)"></span> S2 Digital Tech</div>
+      <div class="legend-item" data-class="c2" onclick="toggleClass('c2',this)"><span class="dot" style="background:var(--c2)"></span> S2 Game Design</div>
+      <div class="legend-item" data-class="c3" onclick="toggleClass('c3',this)"><span class="dot" style="background:var(--c3)"></span> S1 Digital Tech</div>
+      <div class="legend-item" data-class="c4" onclick="toggleClass('c4',this)"><span class="dot" style="background:var(--c4)"></span> S1 Game Design</div>
+      <div class="legend-item" data-class="c5" onclick="toggleClass('c5',this)"><span class="dot" style="background:var(--c5)"></span> Y9 Digital Tech</div>
+      <div class="legend-item" data-class="c6" onclick="toggleClass('c6',this)"><span class="dot" style="background:var(--c6)"></span> Y8 Digital Tech</div>
+    </div>
+
+    <div class="controls no-print">
+      <button class="btn active" id="btnCal" onclick="setView('cal')">📅 Calendar</button>
+      <button class="btn" id="btnList" onclick="setView('list')">📋 List</button>
+      <div class="divider"></div>
+      <button class="btn" onclick="openModal()">＋ Add Event</button>
+      <button class="btn" onclick="window.print()">🖨️ Print</button>
+    </div>
+
+    <div id="viewCal">
+      <div class="months" id="months"></div>
+    </div>
+
+    <div id="viewList" style="display:none">
+      <table class="list-table">
+        <thead>
+          <tr><th>Due Date</th><th>Task</th><th>Class</th><th>Type</th><th class="no-print"></th></tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Print-only legend -->
+    <div class="print-legend" id="printLegend">
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(173,216,230)"></div>S2 Digital Tech</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(216,191,216)"></div>S2 Game Design</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(255,204,153)"></div>S1 Digital Tech</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(216,191,216)"></div>S1 Game Design</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(144,238,144)"></div>Y9 Digital Tech</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(255,182,193)"></div>Y8 Digital Tech</div>
+      <div class="print-legend-item"><div class="print-legend-dot" style="background:#e8e4dc;border:1px solid #ccc"></div>Weekend</div>
+    </div>
+
+  </div><!-- end main-content -->
+</div><!-- end app-wrapper -->
+
+<!-- Drawer toggle -->
+<button class="drawer-toggle no-print" id="drawerToggle" onclick="toggleDrawer()">⟵ Upcoming</button>
+
+<!-- Drawer -->
+<div class="drawer no-print" id="drawer">
+  <div class="drawer-header">
+    <h2>Next Up</h2>
+    <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop hidden" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
+  <div class="modal">
+    <h2 id="modalTitle">Add Event</h2>
+    <div class="field"><label>Date</label><input type="date" id="fDate"></div>
+    <div class="field"><label>Title</label><input type="text" id="fTitle" placeholder="e.g. AT1: Research & Ethics"></div>
+    <div class="field">
+      <label>Class</label>
+      <select id="fCls">
+        <option value="c1">S2 Digital Tech</option>
+        <option value="c2">S2 Game Design</option>
+        <option value="c3">S1 Digital Tech</option>
+        <option value="c4">S1 Game Design</option>
+        <option value="c5">Y9 Digital Tech</option>
+        <option value="c6">Y8 Digital Tech</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="fType">
+        <option value="assignment">Assignment</option>
+        <option value="formative">Formative (Draft)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <div class="left">
+        <button class="btn danger" id="deleteBtn" onclick="deleteEvent()" style="display:none">🗑 Delete</button>
+      </div>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn active" onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const classNames = {
+  c1:'S2 Digital Tech', c2:'S2 Game Design', c3:'S1 Digital Tech',
+  c4:'S1 Game Design',  c5:'Y9 Digital Tech', c6:'Y8 Digital Tech',
+};
+const classColors = {
+  c1:'rgb(100,160,190)', c2:'rgb(150,110,150)', c3:'rgb(200,120,50)',
+  c4:'rgb(150,110,150)', c5:'rgb(60,160,60)',   c6:'rgb(200,100,120)',
+};
+const classBg = {
+  c1:'rgb(173,216,230)', c2:'rgb(216,191,216)', c3:'rgb(255,204,153)',
+  c4:'rgb(216,191,216)', c5:'rgb(144,238,144)', c6:'rgb(255,182,193)',
+};
+
+const hiddenClasses = new Set();
+const today = new Date(); today.setHours(0,0,0,0);
+let allEvents = [];
+let editingId = null;
+let drawerOpen = false;
+
+// ── API ──────────────────────────────────────────────
+async function loadEvents() {
+  const res = await fetch('/api/events');
+  allEvents = await res.json();
+  render();
+}
+
+async function saveEvent() {
+  const payload = {
+    date:  document.getElementById('fDate').value,
+    title: document.getElementById('fTitle').value.trim(),
+    cls:   document.getElementById('fCls').value,
+    type:  document.getElementById('fType').value,
+  };
+  if (!payload.date || !payload.title) { alert('Please fill in date and title.'); return; }
+  if (editingId) {
+    await fetch(`/api/events/${editingId}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+  } else {
+    await fetch('/api/events', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+  }
+  closeModal();
+  await loadEvents();
+}
+
+async function deleteEvent() {
+  if (!editingId || !confirm('Delete this event?')) return;
+  await fetch(`/api/events/${editingId}`, { method:'DELETE' });
+  closeModal();
+  await loadEvents();
+}
+
+// ── Modal ────────────────────────────────────────────
+function openModal(prefillDate='', event=null) {
+  editingId = event ? event.id : null;
+  document.getElementById('modalTitle').textContent = event ? 'Edit Event' : 'Add Event';
+  document.getElementById('fDate').value  = event ? event.date : prefillDate;
+  document.getElementById('fTitle').value = event ? event.title : '';
+  document.getElementById('fCls').value   = event ? event.cls  : 'c1';
+  document.getElementById('fType').value  = event ? event.type : 'assignment';
+  document.getElementById('deleteBtn').style.display = event ? 'inline-block' : 'none';
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modalBackdrop').classList.add('hidden'); }
+function closeModalOnBackdrop(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModal();
+}
+
+// ── Drawer ───────────────────────────────────────────
+function toggleDrawer() {
+  drawerOpen = !drawerOpen;
+  document.getElementById('drawer').classList.toggle('open', drawerOpen);
+  document.getElementById('mainContent').classList.toggle('drawer-open', drawerOpen);
+  const toggle = document.getElementById('drawerToggle');
+  toggle.classList.toggle('open', drawerOpen);
+  toggle.textContent = drawerOpen ? '⟶ Upcoming' : '⟵ Upcoming';
+}
+
+function buildDrawer() {
+  const body = document.getElementById('drawerBody');
+  body.innerHTML = '';
+  ['c1','c2','c3','c4','c5','c6'].forEach(cls => {
+    const upcoming = allEvents
+      .filter(e => e.cls === cls && new Date(e.date) >= today)
+      .sort((a,b) => a.date.localeCompare(b.date))[0];
+
+    const card = document.createElement('div');
+    card.className = 'upcoming-card';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'upcoming-card-header';
+    hdr.style.background = classBg[cls];
+    hdr.style.color = classColors[cls];
+    hdr.innerHTML = `<span class="dot" style="background:${classColors[cls]}"></span><span>${classNames[cls]}</span>`;
+    card.appendChild(hdr);
+
+    if (!upcoming) {
+      const none = document.createElement('div');
+      none.className = 'upcoming-none';
+      none.textContent = 'No upcoming events';
+      card.appendChild(none);
+    } else {
+      const daysUntil = Math.round((new Date(upcoming.date) - today) / 86400000);
+      const daysLabel = daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d away`;
+      const daysClass = daysUntil <= 3 ? 'very-soon' : daysUntil <= 7 ? 'soon' : 'ok';
+      const dateFormatted = new Date(upcoming.date).toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+
+      const cardBody = document.createElement('div');
+      cardBody.className = 'upcoming-card-body';
+      cardBody.innerHTML = `
+        <div class="upcoming-title">${upcoming.title}</div>
+        <div class="upcoming-meta">
+          <span class="upcoming-date">${dateFormatted}</span>
+          <span class="upcoming-days ${daysClass}">${daysLabel}</span>
+          <span class="upcoming-type">${upcoming.type}</span>
+        </div>
+      `;
+      cardBody.onclick = () => openModal('', upcoming);
+      card.appendChild(cardBody);
+    }
+    body.appendChild(card);
+  });
+}
+
+// ── Render ───────────────────────────────────────────
+function render() {
+  document.getElementById('months').innerHTML = '';
+  document.getElementById('listBody').innerHTML = '';
+  buildCalendar();
+  buildList();
+  buildDrawer();
+  hiddenClasses.forEach(cls => {
+    document.querySelectorAll('.event.' + cls).forEach(e => e.classList.add('hidden'));
+    document.querySelectorAll(`tr[data-cls="${cls}"]`).forEach(r => r.classList.add('hidden'));
+  });
+  scrollToCurrentMonth();
+}
+
+function scrollToCurrentMonth() {
+  const blocks = document.querySelectorAll('.month-block');
+  const monthIndex = today.getMonth(); // 0=Jan, calendar starts Jan
+  if (blocks[monthIndex]) {
+    setTimeout(() => {
+      blocks[monthIndex].scrollIntoView({ behavior:'smooth', block:'start' });
+    }, 150);
+  }
+}
+
+function toggleClass(cls, el) {
+  if (hiddenClasses.has(cls)) { hiddenClasses.delete(cls); el.classList.remove('dimmed'); }
+  else { hiddenClasses.add(cls); el.classList.add('dimmed'); }
+  document.querySelectorAll('.event.' + cls).forEach(e => e.classList.toggle('hidden', hiddenClasses.has(cls)));
+  document.querySelectorAll(`tr[data-cls="${cls}"]`).forEach(r => r.classList.toggle('hidden', hiddenClasses.has(cls)));
+}
+
+function setView(v) {
+  document.getElementById('viewCal').style.display  = v === 'cal'  ? 'block' : 'none';
+  document.getElementById('viewList').style.display = v === 'list' ? 'block' : 'none';
+  document.getElementById('btnCal').classList.toggle('active', v === 'cal');
+  document.getElementById('btnList').classList.toggle('active', v === 'list');
+  if (v === 'cal') scrollToCurrentMonth();
+}
+
+// ── Term helpers ─────────────────────────────────────
+const terms = [
+  { name:'Term 1', start:new Date(2026,0,27), end:new Date(2026,3,10) },
+  { name:'Term 2', start:new Date(2026,3,27), end:new Date(2026,6,3) },
+  { name:'Term 3', start:new Date(2026,6,20), end:new Date(2026,8,25) },
+  { name:'Term 4', start:new Date(2026,9,12), end:new Date(2026,11,11) },
+];
+function getTermInfo(date) {
+  for (const t of terms) {
+    if (date >= t.start && date <= t.end) {
+      const off = t.start.getDay() === 0 ? -6 : 1 - t.start.getDay();
+      const mon = new Date(t.start.getTime() + off * 86400000);
+      return { term: t.name, week: Math.floor((date - mon) / (7*86400000)) + 1 };
+    }
+  }
+  if (date > new Date(2026,3,10) && date < new Date(2026,3,27)) return { holiday:'Autumn Holidays' };
+  if (date > new Date(2026,6,3)  && date < new Date(2026,6,20)) return { holiday:'Winter Holidays' };
+  if (date > new Date(2026,8,25) && date < new Date(2026,9,12)) return { holiday:'Spring Holidays' };
+  return null;
+}
+
+// ── Calendar builder ─────────────────────────────────
+function buildCalendar() {
+  const monthsEl = document.getElementById('months');
+  const months = [
+    [2026,0,'January'],[2026,1,'February'],[2026,2,'March'],[2026,3,'April'],
+    [2026,4,'May'],[2026,5,'June'],[2026,6,'July'],[2026,7,'August'],
+    [2026,8,'September'],[2026,9,'October'],[2026,10,'November'],
+  ];
+
+  months.forEach(([yr, mo, name]) => {
+    const monthEvents = allEvents.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === yr && d.getMonth() === mo;
+    });
+
+    const block = document.createElement('div');
+    block.className = 'month-block';
+
+    // Watermark (print only)
+    const watermark = document.createElement('div');
+    watermark.className = 'month-name-watermark';
+    watermark.textContent = name;
+    block.appendChild(watermark);
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'month-header';
+    hdr.innerHTML = `
+      <span class="month-name">${name}</span>
+      <span class="month-yr">${yr}</span>
+      <span class="month-count">${monthEvents.length} due date${monthEvents.length !== 1 ? 's' : ''}</span>
+    `;
+    block.appendChild(hdr);
+
+    // Term banner
+    const termSet = new Map();
+    for (let d2 = 1; d2 <= new Date(yr, mo+1, 0).getDate(); d2++) {
+      const dd = new Date(yr, mo, d2);
+      const info = getTermInfo(dd);
+      if (info?.term    && !termSet.has(info.term))    termSet.set(info.term, info);
+      if (info?.holiday && !termSet.has(info.holiday)) termSet.set(info.holiday, info);
+    }
+    if (termSet.size > 0) {
+      const banner = document.createElement('div');
+      const isHolOnly = [...termSet.values()].every(v => v.holiday);
+      banner.className = 'term-banner' + (isHolOnly ? ' holiday' : '');
+      banner.innerHTML = [...termSet.keys()].map(k => `<span>${k}</span>`).join(' · ');
+      block.appendChild(banner);
+    }
+
+    // Grid
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    // Day labels
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+      const lbl = document.createElement('div');
+      lbl.className = 'day-label';
+      lbl.textContent = d;
+      grid.appendChild(lbl);
+    });
+
+    // Empty offset cells
+    let startOffset = new Date(yr, mo, 1).getDay() - 1;
+    if (startOffset < 0) startOffset = 6;
+    for (let i = 0; i < startOffset; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'day-cell empty';
+      grid.appendChild(empty);
+    }
+
+    // Day cells
+    const daysInMonth = new Date(yr, mo+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const thisDate = new Date(yr, mo, d);
+      const dow = thisDate.getDay(); // 0=Sun, 6=Sat
+      const isWeekend = dow === 0 || dow === 6;
+      const isToday = thisDate.getTime() === today.getTime();
+
+      const cell = document.createElement('div');
+      let cellClass = 'day-cell';
+      if (isWeekend) cellClass += ' weekend';
+      if (isToday)   cellClass += ' today-cell';
+      cell.className = cellClass;
+
+      const dateStr = `${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+      // Click empty area to add event
+      cell.onclick = (e) => {
+        if (e.target === cell || e.target.classList.contains('day-num') ||
+            e.target.classList.contains('day-num-inner') ||
+            e.target.classList.contains('add-hint') ||
+            e.target.classList.contains('week-tag')) {
+          openModal(dateStr);
+        }
+      };
+
+      // Day number row
+      const numRow = document.createElement('div');
+      numRow.className = 'day-num';
+      const inner = document.createElement('span');
+      inner.className = 'day-num-inner';
+      inner.textContent = d;
+      const hint = document.createElement('span');
+      hint.className = 'add-hint';
+      hint.textContent = '+ add';
+      numRow.appendChild(inner);
+      numRow.appendChild(hint);
+      cell.appendChild(numRow);
+
+      // Week tag (shown on Mondays)
+      if (thisDate.getDay() === 1) {
+        const info = getTermInfo(thisDate);
+        if (info?.term || info?.holiday) {
+          const wk = document.createElement('span');
+          wk.className = 'week-tag';
+          wk.style.fontStyle = info.holiday ? 'italic' : '';
+          wk.textContent = info.term ? `${info.term} Wk ${info.week}` : info.holiday;
+          cell.appendChild(wk);
+        }
+      }
+
+      // Events
+      allEvents.filter(e => e.date === dateStr).forEach(ev => {
+        const evEl = document.createElement('div');
+        evEl.className = `event ${ev.cls}${ev.type === 'formative' ? ' formative' : ''}`;
+        evEl.textContent = ev.title;
+        evEl.title = `${classNames[ev.cls]} — ${ev.type} (click to edit)`;
+        evEl.onclick = (e) => { e.stopPropagation(); openModal('', ev); };
+        cell.appendChild(evEl);
+      });
+
+      grid.appendChild(cell);
+    }
+
+    block.appendChild(grid);
+    monthsEl.appendChild(block);
+  });
+}
+
+// ── List builder ─────────────────────────────────────
+function buildList() {
+  const tbody = document.getElementById('listBody');
+  [...allEvents].sort((a,b) => a.date.localeCompare(b.date)).forEach(ev => {
+    const d = new Date(ev.date);
+    const tr = document.createElement('tr');
+    tr.dataset.cls = ev.cls;
+    if (d < today) tr.className = 'past-row';
+    const dateStr = d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+    tr.innerHTML = `
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.8rem;">${dateStr}</span></td>
+      <td>${ev.title}</td>
+      <td><span class="pill ${ev.cls}">${classNames[ev.cls]}</span></td>
+      <td><span class="type-tag">${ev.type}</span></td>
+      <td class="no-print">
+        <button class="btn" style="padding:0.2rem 0.6rem;font-size:0.72rem;"
+          onclick="openModal('',${JSON.stringify(ev).replace(/"/g,'&quot;')})">Edit</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Init ─────────────────────────────────────────────
+loadEvents();
+</script>
+</body>
+</html>
