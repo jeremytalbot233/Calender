@@ -55,6 +55,5 @@ def delete_event(event_id):
     db.session.commit()
     return '', 204
 
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
