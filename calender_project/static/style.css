@@ -325,3 +325,64 @@ h1 { font-family: var(--font-heading), 'DM Serif Display', serif; font-size: 2.5
   .add-hint { display: none !important; }
   .day-cell { min-height: 60px; }
 }
+
+/* ── Grading Notes ── */
+.grading-note {
+  font-size: 0.63rem; font-weight: 500; padding: 0.18rem 0.4rem;
+  border-radius: 3px; margin-bottom: 0.15rem; line-height: 1.35;
+  cursor: pointer; display: block; width: 100%; text-align: left;
+  word-break: break-word; border: 1.5px dashed #b08040;
+  background: #fffbe8; color: #7a5a10;
+  font-style: italic;
+}
+.grading-note:hover { opacity: 0.8; }
+.grading-note.note-done {
+  text-decoration: line-through; opacity: 0.4;
+}
+.grading-note .note-icon { margin-right: 0.2rem; }
+
+/* ── Grading toggle button (left side) ── */
+.grading-toggle {
+  position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+  z-index: 51; background: #7a5a10; color: #fffbe8;
+  border: none; cursor: pointer; padding: 0.75rem 0.4rem;
+  border-radius: 0 8px 8px 0; font-size: 0.7rem;
+  font-family: var(--font-mono), monospace; font-weight: 600; letter-spacing: 0.05em;
+  writing-mode: vertical-rl; text-orientation: mixed;
+  transition: background 0.15s;
+}
+.grading-toggle:hover { background: #5a3a00; }
+
+/* ── Grading drawer (slides from left) ── */
+.grading-drawer {
+  left: calc(-1 * var(--drawer-width)) !important;
+  right: auto !important;
+  border-left: none !important;
+  border-right: 1.5px solid var(--border) !important;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.06) !important;
+}
+.grading-drawer.open { left: 0 !important; }
+
+/* ── Grading panel items ── */
+.grading-date-group { margin-bottom: 1rem; }
+.grading-date-label {
+  font-family: var(--font-mono), monospace; font-size: 0.68rem; font-weight: 700;
+  color: #7a5a10; letter-spacing: 0.05em; text-transform: uppercase;
+  margin-bottom: 0.35rem; padding-bottom: 0.2rem;
+  border-bottom: 1px dashed #d4aa60;
+}
+.grading-date-label.past-label { color: var(--muted); }
+.grading-item {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  padding: 0.4rem 0.5rem; border-radius: 6px; cursor: pointer;
+  transition: background 0.1s; margin-bottom: 0.25rem;
+  background: #fffbe8; border: 1.5px dashed #d4aa60;
+}
+.grading-item:hover { background: #fff3cc; }
+.grading-item.done-item { opacity: 0.4; }
+.grading-item input[type="checkbox"] { margin-top: 0.1rem; cursor: pointer; accent-color: #7a5a10; flex-shrink: 0; }
+.grading-item-text { font-size: 0.78rem; line-height: 1.4; color: var(--text); flex: 1; }
+.grading-item.done-item .grading-item-text { text-decoration: line-through; }
+.grading-item-edit { font-size: 0.65rem; color: var(--muted); cursor: pointer; padding: 0 0.2rem; flex-shrink: 0; }
+.grading-item-edit:hover { color: var(--text); }
+.grading-empty { font-size: 0.78rem; color: var(--muted); font-style: italic; padding: 0.5rem 0; }
