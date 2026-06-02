@@ -21,6 +21,7 @@
         <div class="header-actions no-print">
           <button class="btn" onclick="openThemeModal()">🎨 Customise</button>
           <button class="btn" onclick="openClassModal()">⚙️ Classes</button>
+          <button class="btn" onclick="openYearModal()">📅 Year Settings</button>
         </div>
       </div>
     </header>
@@ -243,6 +244,44 @@
       <button class="btn danger" onclick="resetTheme()">Reset to Default</button>
       <button class="btn" onclick="closeThemeModal()">Cancel</button>
       <button class="btn active" onclick="saveTheme()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ YEAR SETTINGS MODAL ══ -->
+<div class="modal-backdrop hidden" id="yearModalBackdrop" onclick="closeYearModalOnBackdrop(event)">
+  <div class="modal" style="width:520px;">
+    <h2>📅 Year Settings</h2>
+
+    <div class="field">
+      <label>Calendar Year</label>
+      <input type="number" id="yYear" min="2020" max="2040" placeholder="e.g. 2027" style="width:120px;">
+    </div>
+    <div class="field">
+      <label>Subtitle</label>
+      <input type="text" id="ySubtitle" placeholder="e.g. 2027 — All Due Dates">
+    </div>
+
+    <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:1rem 0 0.75rem;">Term Dates</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+      <div class="field"><label>Term 1 Start</label><input type="date" id="yT1s"></div>
+      <div class="field"><label>Term 1 End</label>  <input type="date" id="yT1e"></div>
+      <div class="field"><label>Term 2 Start</label><input type="date" id="yT2s"></div>
+      <div class="field"><label>Term 2 End</label>  <input type="date" id="yT2e"></div>
+      <div class="field"><label>Term 3 Start</label><input type="date" id="yT3s"></div>
+      <div class="field"><label>Term 3 End</label>  <input type="date" id="yT3e"></div>
+      <div class="field"><label>Term 4 Start</label><input type="date" id="yT4s"></div>
+      <div class="field"><label>Term 4 End</label>  <input type="date" id="yT4e"></div>
+    </div>
+
+    <div style="background:#fffbe8;border:1.5px dashed #d4aa60;border-radius:8px;padding:0.85rem;margin-top:0.5rem;font-size:0.78rem;color:#7a5a10;">
+      <strong>New year rollover:</strong> changing the year rebuilds the calendar for that year. Your existing events and classes stay in the database — old events just won't appear on the new calendar months. You can delete old events from the list view.
+    </div>
+
+    <div class="modal-actions" style="margin-top:1.25rem;">
+      <button class="btn" onclick="closeYearModal()">Cancel</button>
+      <button class="btn active" onclick="saveYearSettings()">Save & Rebuild</button>
     </div>
   </div>
 </div>
