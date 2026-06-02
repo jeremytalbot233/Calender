@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from models import db, Event, Class, Theme
+from models import db, Event, Class, Theme, Note
 import os
 from datetime import datetime, timedelta
 
@@ -163,6 +163,38 @@ def update_theme():
             db.session.add(Theme(key=k, value=v))
     db.session.commit()
     return jsonify({'ok': True})
+
+
+# ── Notes ────────────────────────────────────────────
+@app.route('/api/notes', methods=['GET'])
+def get_notes():
+    notes = Note.query.order_by(Note.date).all()
+    return jsonify([n.to_dict() for n in notes])
+
+@app.route('/api/notes', methods=['POST'])
+def create_note():
+    data = request.get_json()
+    n = Note(date=data['date'], text=data['text'])
+    db.session.add(n)
+    db.session.commit()
+    return jsonify(n.to_dict()), 201
+
+@app.route('/api/notes/<int:note_id>', methods=['PUT'])
+def update_note(note_id):
+    n = Note.query.get_or_404(note_id)
+    data = request.get_json()
+    n.text      = data.get('text', n.text)
+    n.date      = data.get('date', n.date)
+    n.completed = data.get('completed', n.completed)
+    db.session.commit()
+    return jsonify(n.to_dict())
+
+@app.route('/api/notes/<int:note_id>', methods=['DELETE'])
+def delete_note(note_id):
+    n = Note.query.get_or_404(note_id)
+    db.session.delete(n)
+    db.session.commit()
+    return '', 204
 
 
 # ── Helpers ──────────────────────────────────────────
