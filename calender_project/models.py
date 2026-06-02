@@ -47,6 +47,21 @@ class Event(db.Model):
             'recur_end': self.recur_end,
         }
 
+class Note(db.Model):
+    __tablename__ = 'notes'
+    id        = db.Column(db.Integer, primary_key=True)
+    date      = db.Column(db.String(10), nullable=False)
+    text      = db.Column(db.Text, nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+
+    def to_dict(self):
+        return {
+            'id':        self.id,
+            'date':      self.date,
+            'text':      self.text,
+            'completed': self.completed,
+        }
+
 class Theme(db.Model):
     __tablename__ = 'theme'
     id    = db.Column(db.Integer, primary_key=True)
