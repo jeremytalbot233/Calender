@@ -3,24 +3,26 @@ from models import db, Event
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+
+uri = os.environ.get('DATABASE_URL')
+if uri and uri.startswith('postgres://'):
+    uri = uri.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
     db.create_all()
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/api/events', methods=['GET'])
 def get_events():
     events = Event.query.order_by(Event.date).all()
     return jsonify([e.to_dict() for e in events])
-
 
 @app.route('/api/events', methods=['POST'])
 def create_event():
@@ -35,7 +37,6 @@ def create_event():
     db.session.commit()
     return jsonify(event.to_dict()), 201
 
-
 @app.route('/api/events/<int:event_id>', methods=['PUT'])
 def update_event(event_id):
     event = Event.query.get_or_404(event_id)
@@ -46,7 +47,6 @@ def update_event(event_id):
     event.type = data.get('type', event.type)
     db.session.commit()
     return jsonify(event.to_dict())
-
 
 @app.route('/api/events/<int:event_id>', methods=['DELETE'])
 def delete_event(event_id):
