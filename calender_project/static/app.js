@@ -1062,3 +1062,120 @@ async function deleteNote() {
   buildCalendar();
   applyHiddenClasses();
 }
+
+// ══════════════════════════════════════════
+// YEAR SETTINGS
+// ══════════════════════════════════════════
+
+function buildMonthsFromYear(year) {
+  const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  // Show all 12 months for the given year
+  return names.map((name, i) => [year, i, name]);
+}
+
+function buildTermsFromSettings(t) {
+  return [
+    { name:'Term 1', start: new Date(t['term1-start']), end: new Date(t['term1-end']) },
+    { name:'Term 2', start: new Date(t['term2-start']), end: new Date(t['term2-end']) },
+    { name:'Term 3', start: new Date(t['term3-start']), end: new Date(t['term3-end']) },
+    { name:'Term 4', start: new Date(t['term4-start']), end: new Date(t['term4-end']) },
+  ];
+}
+
+function applyYearSettings() {
+  const year = parseInt(theme['cal-year'] || '2026');
+  // Rebuild MONTHS and TERMS globals dynamically
+  MONTHS.length = 0;
+  buildMonthsFromYear(year).forEach(m => MONTHS.push(m));
+
+  TERMS.length = 0;
+  buildTermsFromSettings(theme).forEach(t => TERMS.push(t));
+
+  // Update subtitle
+  const subtitle = theme['cal-subtitle'] || `${year} — All Due Dates`;
+  const subEl = document.getElementById('subtitleEl');
+  if (subEl) subEl.textContent = subtitle;
+
+  // Update page title
+  document.title = `Class Calendar ${year}`;
+}
+
+function openYearModal() {
+  document.getElementById('yYear').value     = theme['cal-year'] || '2026';
+  document.getElementById('ySubtitle').value = theme['cal-subtitle'] || '';
+  document.getElementById('yT1s').value = theme['term1-start'] || '';
+  document.getElementById('yT1e').value = theme['term1-end']   || '';
+  document.getElementById('yT2s').value = theme['term2-start'] || '';
+  document.getElementById('yT2e').value = theme['term2-end']   || '';
+  document.getElementById('yT3s').value = theme['term3-start'] || '';
+  document.getElementById('yT3e').value = theme['term3-end']   || '';
+  document.getElementById('yT4s').value = theme['term4-start'] || '';
+  document.getElementById('yT4e').value = theme['term4-end']   || '';
+  document.getElementById('yearModalBackdrop').classList.remove('hidden');
+}
+
+function closeYearModal() {
+  document.getElementById('yearModalBackdrop').classList.add('hidden');
+}
+
+function closeYearModalOnBackdrop(e) {
+  if (e.target === document.getElementById('yearModalBackdrop')) closeYearModal();
+}
+
+async function saveYearSettings() {
+  const year = document.getElementById('yYear').value;
+  if (!year) { alert('Please enter a year.'); return; }
+
+  const subtitle = document.getElementById('ySubtitle').value.trim() || `${year} — All Due Dates`;
+
+  const updates = {
+    'cal-year':     year,
+    'cal-subtitle': subtitle,
+    'term1-start':  document.getElementById('yT1s').value,
+    'term1-end':    document.getElementById('yT1e').value,
+    'term2-start':  document.getElementById('yT2s').value,
+    'term2-end':    document.getElementById('yT2e').value,
+    'term3-start':  document.getElementById('yT3s').value,
+    'term3-end':    document.getElementById('yT3e').value,
+    'term4-start':  document.getElementById('yT4s').value,
+    'term4-end':    document.getElementById('yT4e').value,
+  };
+
+  await fetch('/api/theme', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+
+  await loadTheme();
+  applyYearSettings();
+  closeYearModal();
+  render();
+  scrollToCurrentMonth();
+}
+
+// Patch init to apply year settings after theme loads
+const _origInit = init;
+async function init() {
+  await Promise.all([loadClasses(), loadTheme(), loadNotes()]);
+  await loadEvents();
+  applyTheme();
+  applyYearSettings();
+  buildLegend();
+  buildDrawer();
+  buildGradingPanel();
+  render();
+  buildThemePresets();
+}
+
+// Override scrollToCurrentMonth to work with any year
+function scrollToCurrentMonth() {
+  const year = parseInt(theme['cal-year'] || '2026');
+  const blocks = document.querySelectorAll('.month-block');
+  // If viewing current year, scroll to today's month, else scroll to top
+  if (year === today.getFullYear()) {
+    const idx = today.getMonth();
+    if (blocks[idx]) setTimeout(() => blocks[idx].scrollIntoView({ behavior:'smooth', block:'start' }), 150);
+  } else {
+    if (blocks[0]) setTimeout(() => blocks[0].scrollIntoView({ behavior:'smooth', block:'start' }), 150);
+  }
+}
