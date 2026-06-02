@@ -1,7 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from models import db, Event, Class, Theme, Note
 import os
+import hashlib
+import hmac
 from datetime import datetime, timedelta
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -10,6 +13,11 @@ if uri and uri.startswith('postgres://'):
     uri = uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Secret key for session encryption — set via environment variable
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+
 db.init_app(app)
 
 DEFAULT_CLASSES = [
@@ -30,7 +38,6 @@ DEFAULT_THEME = {
     '--font-body':    'DM Sans',
     '--font-mono':    'DM Mono',
     '--font-heading': 'DM Serif Display',
-    # Year & term settings stored alongside theme for simplicity
     'cal-year':       '2026',
     'cal-subtitle':   '2026 — All Due Dates',
     'term1-start':    '2026-01-27',
@@ -55,19 +62,72 @@ with app.app_context():
     db.session.commit()
 
 
+# ── Auth helpers ─────────────────────────────────────
+def hash_password(password):
+    """Hash a password using SHA-256 with a salt from SECRET_KEY."""
+    key = app.config['SECRET_KEY'].encode()
+    return hmac.new(key, password.encode(), hashlib.sha256).hexdigest()
+
+def check_password(password):
+    """Check submitted password against the hashed env var."""
+    stored = os.environ.get('APP_PASSWORD_HASH', '')
+    if not stored:
+        # Fallback: compare against plain APP_PASSWORD if hash not set
+        plain = os.environ.get('APP_PASSWORD', '')
+        if not plain:
+            return False
+        return hmac.compare_digest(hash_password(password), hash_password(plain))
+    return hmac.compare_digest(hash_password(password), stored)
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            if request.is_json:
+                return jsonify({'error': 'Unauthorised'}), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── Auth routes ──────────────────────────────────────
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if session.get('logged_in'):
+        return redirect(url_for('index'))
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if check_password(password):
+            session.permanent = True
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            error = 'Incorrect password. Please try again.'
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
 # ── Pages ────────────────────────────────────────────
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 
 # ── Classes ──────────────────────────────────────────
 @app.route('/api/classes', methods=['GET'])
+@login_required
 def get_classes():
     classes = Class.query.order_by(Class.order).all()
     return jsonify([c.to_dict() for c in classes])
 
 @app.route('/api/classes', methods=['POST'])
+@login_required
 def create_class():
     data = request.get_json()
     max_order = db.session.query(db.func.max(Class.order)).scalar() or 0
@@ -82,6 +142,7 @@ def create_class():
     return jsonify(c.to_dict()), 201
 
 @app.route('/api/classes/<int:class_id>', methods=['PUT'])
+@login_required
 def update_class(class_id):
     c = Class.query.get_or_404(class_id)
     data = request.get_json()
@@ -93,6 +154,7 @@ def update_class(class_id):
     return jsonify(c.to_dict())
 
 @app.route('/api/classes/<int:class_id>', methods=['DELETE'])
+@login_required
 def delete_class(class_id):
     c = Class.query.get_or_404(class_id)
     db.session.delete(c)
@@ -102,11 +164,13 @@ def delete_class(class_id):
 
 # ── Events ───────────────────────────────────────────
 @app.route('/api/events', methods=['GET'])
+@login_required
 def get_events():
     events = Event.query.order_by(Event.date).all()
     return jsonify([e.to_dict() for e in events])
 
 @app.route('/api/events', methods=['POST'])
+@login_required
 def create_event():
     data = request.get_json()
     events_to_create = _expand_recurrence(data)
@@ -119,6 +183,7 @@ def create_event():
     return jsonify([e.to_dict() for e in created]), 201
 
 @app.route('/api/events/<int:event_id>', methods=['PUT'])
+@login_required
 def update_event(event_id):
     event = Event.query.get_or_404(event_id)
     data = request.get_json()
@@ -132,6 +197,7 @@ def update_event(event_id):
     return jsonify(event.to_dict())
 
 @app.route('/api/events/<int:event_id>', methods=['DELETE'])
+@login_required
 def delete_event(event_id):
     event = Event.query.get_or_404(event_id)
     db.session.delete(event)
@@ -139,6 +205,7 @@ def delete_event(event_id):
     return '', 204
 
 @app.route('/api/events/<int:event_id>/duplicate', methods=['POST'])
+@login_required
 def duplicate_event(event_id):
     original = Event.query.get_or_404(event_id)
     data = request.get_json()
@@ -159,11 +226,13 @@ def duplicate_event(event_id):
 
 # ── Theme ────────────────────────────────────────────
 @app.route('/api/theme', methods=['GET'])
+@login_required
 def get_theme():
     theme = Theme.query.all()
     return jsonify({t.key: t.value for t in theme})
 
 @app.route('/api/theme', methods=['POST'])
+@login_required
 def update_theme():
     data = request.get_json()
     for k, v in data.items():
@@ -178,11 +247,13 @@ def update_theme():
 
 # ── Notes ────────────────────────────────────────────
 @app.route('/api/notes', methods=['GET'])
+@login_required
 def get_notes():
     notes = Note.query.order_by(Note.date).all()
     return jsonify([n.to_dict() for n in notes])
 
 @app.route('/api/notes', methods=['POST'])
+@login_required
 def create_note():
     data = request.get_json()
     n = Note(date=data['date'], text=data['text'])
@@ -191,6 +262,7 @@ def create_note():
     return jsonify(n.to_dict()), 201
 
 @app.route('/api/notes/<int:note_id>', methods=['PUT'])
+@login_required
 def update_note(note_id):
     n = Note.query.get_or_404(note_id)
     data = request.get_json()
@@ -201,6 +273,7 @@ def update_note(note_id):
     return jsonify(n.to_dict())
 
 @app.route('/api/notes/<int:note_id>', methods=['DELETE'])
+@login_required
 def delete_note(note_id):
     n = Note.query.get_or_404(note_id)
     db.session.delete(n)
