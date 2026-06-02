@@ -40,6 +40,8 @@
       <div class="divider"></div>
       <button class="btn" onclick="openModal()">＋ Add Event</button>
       <button class="btn" onclick="window.print()">🖨️ Print</button>
+      <div class="divider"></div>
+      <button class="btn" onclick="openNoteModal()">📋 Add Grading Note</button>
     </div>
 
     <!-- Calendar view -->
@@ -81,8 +83,9 @@
   </div><!-- end main-content -->
 </div><!-- end app-wrapper -->
 
-<!-- Drawer toggle -->
+<!-- Drawer toggles -->
 <button class="drawer-toggle no-print" id="drawerToggle" onclick="toggleDrawer()">⟵ Upcoming</button>
+<button class="grading-toggle no-print" id="gradingToggle" onclick="toggleGrading()">📋 Grading</button>
 
 <!-- Upcoming drawer -->
 <div class="drawer no-print" id="drawer">
@@ -91,6 +94,31 @@
     <button class="drawer-close" onclick="toggleDrawer()">✕</button>
   </div>
   <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- Grading drawer -->
+<div class="drawer grading-drawer no-print" id="gradingDrawer">
+  <div class="drawer-header">
+    <h2>📋 Grading To-Do</h2>
+    <button class="drawer-close" onclick="toggleGrading()">✕</button>
+  </div>
+  <div class="drawer-body" id="gradingBody"></div>
+</div>
+
+<!-- ══ NOTE MODAL ══ -->
+<div class="modal-backdrop hidden" id="noteModalBackdrop" onclick="closeNoteModalOnBackdrop(event)">
+  <div class="modal">
+    <h2 id="noteModalTitle">Add Grading Note</h2>
+    <div class="field"><label>Date</label><input type="date" id="nDate"></div>
+    <div class="field"><label>Note</label><textarea id="nText" rows="3" placeholder="e.g. Grade S2 DT AT1 submissions…" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-body,DM Sans),sans-serif;font-size:0.85rem;background:var(--bg);color:var(--text);resize:vertical;"></textarea></div>
+    <div class="modal-actions">
+      <div class="left">
+        <button class="btn danger" id="noteDeleteBtn" onclick="deleteNote()" style="display:none">🗑 Delete</button>
+      </div>
+      <button class="btn" onclick="closeNoteModal()">Cancel</button>
+      <button class="btn active" onclick="saveNote()">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ EVENT MODAL ══ -->
@@ -222,3 +250,4 @@
 <script src="/static/app.js"></script>
 </body>
 </html>
+<!-- injected below body end - grading drawer and note modal will be added via sed -->
