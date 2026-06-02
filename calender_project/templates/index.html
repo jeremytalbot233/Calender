@@ -3,59 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Class Calendar 2026</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Class Calendar 2026</title>
+<link id="gfonts" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Inter:wght@300;400;500;600&family=Lato:wght@300;400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 <div class="app-wrapper">
   <div class="main-content" id="mainContent">
+
     <header>
-      <h1>Class Calendar</h1>
-      <div class="subtitle">2026 — All Due Dates</div>
+      <div class="header-row">
+        <div>
+          <h1>Class Calendar</h1>
+          <div class="subtitle" id="subtitleEl">2026 — All Due Dates</div>
+        </div>
+        <div class="header-actions no-print">
+          <button class="btn" onclick="openThemeModal()">🎨 Customise</button>
+          <button class="btn" onclick="openClassModal()">⚙️ Classes</button>
+        </div>
+      </div>
     </header>
-    <div class="legend no-print" id="legend">
-      <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-right:0.25rem;">Filter:</span>
-      <div class="legend-item" data-class="c1" onclick="toggleClass('c1',this)"><span class="dot" style="background:var(--c1)"></span> S2 Digital Tech</div>
-      <div class="legend-item" data-class="c2" onclick="toggleClass('c2',this)"><span class="dot" style="background:var(--c2)"></span> S2 Game Design</div>
-      <div class="legend-item" data-class="c3" onclick="toggleClass('c3',this)"><span class="dot" style="background:var(--c3)"></span> S1 Digital Tech</div>
-      <div class="legend-item" data-class="c4" onclick="toggleClass('c4',this)"><span class="dot" style="background:var(--c4)"></span> S1 Game Design</div>
-      <div class="legend-item" data-class="c5" onclick="toggleClass('c5',this)"><span class="dot" style="background:var(--c5)"></span> Y9 Digital Tech</div>
-      <div class="legend-item" data-class="c6" onclick="toggleClass('c6',this)"><span class="dot" style="background:var(--c6)"></span> Y8 Digital Tech</div>
+
+    <!-- Search bar -->
+    <div class="search-bar no-print">
+      <input type="text" id="searchInput" placeholder="🔍  Search events…" oninput="onSearch(this.value)">
+      <button class="btn" id="clearSearch" onclick="clearSearch()" style="display:none">✕ Clear</button>
     </div>
+
+    <div class="legend no-print" id="legend"></div>
+
     <div class="controls no-print">
-      <button class="btn active" id="btnCal" onclick="setView('cal')">📅 Calendar</button>
-      <button class="btn" id="btnList" onclick="setView('list')">📋 List</button>
+      <button class="btn active" id="btnCal"  onclick="setView('cal')">📅 Calendar</button>
+      <button class="btn"        id="btnList" onclick="setView('list')">📋 List</button>
+      <button class="btn"        id="btnWeek" onclick="setView('week')">📆 Week</button>
       <div class="divider"></div>
       <button class="btn" onclick="openModal()">＋ Add Event</button>
       <button class="btn" onclick="window.print()">🖨️ Print</button>
     </div>
+
+    <!-- Calendar view -->
     <div id="viewCal">
       <div class="months" id="months"></div>
     </div>
+
+    <!-- Week view -->
+    <div id="viewWeek" style="display:none">
+      <div class="week-nav no-print">
+        <button class="btn" onclick="prevWeek()">← Prev</button>
+        <span class="week-title" id="weekTitle"></span>
+        <button class="btn" onclick="nextWeek()">Next →</button>
+        <button class="btn" onclick="goToday()">Today</button>
+      </div>
+      <div class="week-grid" id="weekGrid"></div>
+    </div>
+
+    <!-- List view -->
     <div id="viewList" style="display:none">
+      <div class="list-filters no-print" style="margin-bottom:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);">Show:</span>
+        <button class="btn active" id="filterAll"      onclick="setListFilter('all')">All</button>
+        <button class="btn"        id="filterUpcoming" onclick="setListFilter('upcoming')">Upcoming</button>
+        <button class="btn"        id="filterPast"     onclick="setListFilter('past')">Past</button>
+        <button class="btn"        id="filterDone"     onclick="setListFilter('done')">Completed</button>
+      </div>
       <table class="list-table">
         <thead>
-          <tr><th>Due Date</th><th>Task</th><th>Class</th><th>Type</th><th class="no-print"></th></tr>
+          <tr><th>Due Date</th><th>Task</th><th>Class</th><th>Type</th><th>Status</th><th class="no-print"></th></tr>
         </thead>
         <tbody id="listBody"></tbody>
       </table>
     </div>
-    <div class="print-legend" id="printLegend">
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(173,216,230)"></div>S2 Digital Tech</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(216,191,216)"></div>S2 Game Design</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(255,204,153)"></div>S1 Digital Tech</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(216,191,216)"></div>S1 Game Design</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(144,238,144)"></div>Y9 Digital Tech</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:rgb(255,182,193)"></div>Y8 Digital Tech</div>
-      <div class="print-legend-item"><div class="print-legend-dot" style="background:#e8e4dc;border:1px solid #ccc"></div>Weekend</div>
-    </div>
-  </div>
-</div>
 
+    <!-- Print legend -->
+    <div class="print-legend" id="printLegend"></div>
+
+  </div><!-- end main-content -->
+</div><!-- end app-wrapper -->
+
+<!-- Drawer toggle -->
 <button class="drawer-toggle no-print" id="drawerToggle" onclick="toggleDrawer()">⟵ Upcoming</button>
 
+<!-- Upcoming drawer -->
 <div class="drawer no-print" id="drawer">
   <div class="drawer-header">
     <h2>Next Up</h2>
@@ -64,6 +93,7 @@
   <div class="drawer-body" id="drawerBody"></div>
 </div>
 
+<!-- ══ EVENT MODAL ══ -->
 <div class="modal-backdrop hidden" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
   <div class="modal">
     <h2 id="modalTitle">Add Event</h2>
@@ -71,14 +101,7 @@
     <div class="field"><label>Title</label><input type="text" id="fTitle" placeholder="e.g. AT1: Research & Ethics"></div>
     <div class="field">
       <label>Class</label>
-      <select id="fCls">
-        <option value="c1">S2 Digital Tech</option>
-        <option value="c2">S2 Game Design</option>
-        <option value="c3">S1 Digital Tech</option>
-        <option value="c4">S1 Game Design</option>
-        <option value="c5">Y9 Digital Tech</option>
-        <option value="c6">Y8 Digital Tech</option>
-      </select>
+      <select id="fCls"></select>
     </div>
     <div class="field">
       <label>Type</label>
@@ -87,12 +110,111 @@
         <option value="formative">Formative (Draft)</option>
       </select>
     </div>
+    <div class="field">
+      <label>Recurring</label>
+      <select id="fRecur" onchange="toggleRecurEnd()">
+        <option value="none">No recurrence</option>
+        <option value="weekly">Weekly</option>
+        <option value="fortnightly">Fortnightly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="field" id="recurEndField" style="display:none">
+      <label>Repeat Until</label>
+      <input type="date" id="fRecurEnd">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="fNotes" rows="2" placeholder="Optional notes…" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-body, DM Sans),sans-serif;font-size:0.85rem;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    </div>
     <div class="modal-actions">
-      <div class="left">
-        <button class="btn danger" id="deleteBtn" onclick="deleteEvent()" style="display:none">🗑 Delete</button>
+      <div class="left" style="display:flex;gap:0.5rem;">
+        <button class="btn danger"   id="deleteBtn"    onclick="deleteEvent()"    style="display:none">🗑 Delete</button>
+        <button class="btn"          id="duplicateBtn" onclick="duplicateEvent()" style="display:none">⧉ Duplicate</button>
+        <button class="btn"          id="completeBtn"  onclick="toggleComplete()" style="display:none">✓ Done</button>
       </div>
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn active" onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CLASS MANAGER MODAL ══ -->
+<div class="modal-backdrop hidden" id="classModalBackdrop" onclick="closeClassModalOnBackdrop(event)">
+  <div class="modal" style="width:500px;">
+    <h2>Manage Classes</h2>
+    <div id="classListEl" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;max-height:320px;overflow-y:auto;"></div>
+    <div style="border-top:1.5px solid var(--border);padding-top:1rem;">
+      <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem;">Add New Class</p>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+        <div class="field" style="flex:1;min-width:140px;margin:0"><label>Name</label><input type="text" id="newClassName" placeholder="e.g. Y10 Web Design"></div>
+        <div class="field" style="margin:0">
+          <label>Text colour</label>
+          <input type="color" id="newClassColor" value="#64a0be" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);">
+        </div>
+        <div class="field" style="margin:0">
+          <label>Background</label>
+          <input type="color" id="newClassBg" value="#add8e6" style="width:44px;height:36px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);">
+        </div>
+        <button class="btn active" onclick="addClass()" style="height:36px;">Add</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:1rem;">
+      <button class="btn active" onclick="closeClassModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ THEME MODAL ══ -->
+<div class="modal-backdrop hidden" id="themeModalBackdrop" onclick="closeThemeModalOnBackdrop(event)">
+  <div class="modal" style="width:480px;max-height:90vh;overflow-y:auto;">
+    <h2>Customise Appearance</h2>
+
+    <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem;">Presets</p>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem;" id="themePresets"></div>
+
+    <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem;">Colours</p>
+    <div class="theme-grid">
+      <div class="field"><label>Background</label><input type="color" id="t--bg"      oninput="liveTheme('--bg',this.value)"></div>
+      <div class="field"><label>Surface</label>   <input type="color" id="t--surface" oninput="liveTheme('--surface',this.value)"></div>
+      <div class="field"><label>Border</label>    <input type="color" id="t--border"  oninput="liveTheme('--border',this.value)"></div>
+      <div class="field"><label>Text</label>      <input type="color" id="t--text"    oninput="liveTheme('--text',this.value)"></div>
+      <div class="field"><label>Muted</label>     <input type="color" id="t--muted"   oninput="liveTheme('--muted',this.value)"></div>
+    </div>
+
+    <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:1.25rem 0 0.75rem;">Fonts</p>
+    <div class="theme-grid">
+      <div class="field">
+        <label>Body font</label>
+        <select id="t--font-body" onchange="liveTheme('--font-body',this.value)">
+          <option value="DM Sans">DM Sans</option>
+          <option value="Inter">Inter</option>
+          <option value="Lato">Lato</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Heading font</label>
+        <select id="t--font-heading" onchange="liveTheme('--font-heading',this.value)">
+          <option value="DM Serif Display">DM Serif Display</option>
+          <option value="Merriweather">Merriweather</option>
+          <option value="Playfair Display">Playfair Display</option>
+          <option value="Inter">Inter</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Mono font</label>
+        <select id="t--font-mono" onchange="liveTheme('--font-mono',this.value)">
+          <option value="DM Mono">DM Mono</option>
+          <option value="Source Code Pro">Source Code Pro</option>
+          <option value="Inter">Inter</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:1.5rem;">
+      <button class="btn danger" onclick="resetTheme()">Reset to Default</button>
+      <button class="btn" onclick="closeThemeModal()">Cancel</button>
+      <button class="btn active" onclick="saveTheme()">Save</button>
     </div>
   </div>
 </div>
