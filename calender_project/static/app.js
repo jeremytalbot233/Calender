@@ -753,3 +753,312 @@ function rgbOrHexToHex(val) {
 
 // ── Boot ─────────────────────────────────────────────
 init();
+
+// ══════════════════════════════════════════
+// GRADING NOTES
+// ══════════════════════════════════════════
+
+let allNotes = [];
+let editingNoteId = null;
+let gradingOpen = false;
+
+// Load notes alongside other data
+const _originalInit = init;
+async function init() {
+  await Promise.all([loadClasses(), loadTheme(), loadNotes()]);
+  await loadEvents();
+  applyTheme();
+  buildLegend();
+  buildDrawer();
+  buildGradingPanel();
+  render();
+  buildThemePresets();
+}
+
+async function loadNotes() {
+  const res = await fetch('/api/notes');
+  allNotes = await res.json();
+}
+
+// ── Override render to also rebuild grading ──────────
+const _origRender = render;
+function render() {
+  buildCalendar();
+  buildList();
+  buildWeek();
+  buildDrawer();
+  buildGradingPanel();
+  applyHiddenClasses();
+  applySearch();
+}
+
+// ── Note chips on calendar ───────────────────────────
+function makeNoteChip(note) {
+  const el = document.createElement('button');
+  el.className = 'grading-note' + (note.completed ? ' note-done' : '');
+  el.innerHTML = `<span class="note-icon">📋</span>${note.text}`;
+  el.title = 'Grading note (click to edit)';
+  el.onclick = (e) => { e.stopPropagation(); openNoteModal(note.date, note); };
+  return el;
+}
+
+// Patch buildCalendar to also render note chips
+const _origBuildCalendar = buildCalendar;
+function buildCalendar() {
+  const monthsEl = document.getElementById('months');
+  monthsEl.innerHTML = '';
+
+  MONTHS.forEach(([yr, mo, name]) => {
+    const monthEvents = allEvents.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === yr && d.getMonth() === mo;
+    });
+
+    const block = document.createElement('div');
+    block.className = 'month-block';
+
+    const watermark = document.createElement('div');
+    watermark.className = 'month-name-watermark';
+    watermark.textContent = name;
+    block.appendChild(watermark);
+
+    const hdr = document.createElement('div');
+    hdr.className = 'month-header';
+    hdr.innerHTML = `
+      <span class="month-name">${name}</span>
+      <span class="month-yr">${yr}</span>
+      <span class="month-count">${monthEvents.length} due date${monthEvents.length !== 1 ? 's' : ''}</span>
+    `;
+    block.appendChild(hdr);
+
+    const termSet = new Map();
+    for (let d2 = 1; d2 <= new Date(yr, mo+1, 0).getDate(); d2++) {
+      const dd = new Date(yr, mo, d2);
+      const info = getTermInfo(dd);
+      if (info?.term    && !termSet.has(info.term))    termSet.set(info.term, info);
+      if (info?.holiday && !termSet.has(info.holiday)) termSet.set(info.holiday, info);
+    }
+    if (termSet.size > 0) {
+      const banner = document.createElement('div');
+      const isHolOnly = [...termSet.values()].every(v => v.holiday);
+      banner.className = 'term-banner' + (isHolOnly ? ' holiday' : '');
+      banner.innerHTML = [...termSet.keys()].map(k => `<span>${k}</span>`).join(' · ');
+      block.appendChild(banner);
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+      const lbl = document.createElement('div');
+      lbl.className = 'day-label';
+      lbl.textContent = d;
+      grid.appendChild(lbl);
+    });
+
+    let startOffset = new Date(yr, mo, 1).getDay() - 1;
+    if (startOffset < 0) startOffset = 6;
+    for (let i = 0; i < startOffset; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'day-cell empty';
+      grid.appendChild(empty);
+    }
+
+    const daysInMonth = new Date(yr, mo+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const thisDate = new Date(yr, mo, d);
+      const dow = thisDate.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const isToday   = thisDate.getTime() === today.getTime();
+      const dateStr   = fmtDate(yr, mo+1, d);
+
+      const cell = document.createElement('div');
+      cell.className = 'day-cell' + (isWeekend ? ' weekend' : '') + (isToday ? ' today-cell' : '');
+      cell.onclick = (e) => {
+        if (e.target === cell ||
+            e.target.classList.contains('day-num') ||
+            e.target.classList.contains('day-num-inner') ||
+            e.target.classList.contains('add-hint') ||
+            e.target.classList.contains('week-tag')) {
+          openModal(dateStr);
+        }
+      };
+
+      const numRow = document.createElement('div');
+      numRow.className = 'day-num';
+      const inner = document.createElement('span');
+      inner.className = 'day-num-inner';
+      inner.textContent = d;
+      const hint = document.createElement('span');
+      hint.className = 'add-hint';
+      hint.textContent = '+ add';
+      numRow.appendChild(inner);
+      numRow.appendChild(hint);
+      cell.appendChild(numRow);
+
+      if (dow === 1) {
+        const info = getTermInfo(thisDate);
+        if (info?.term || info?.holiday) {
+          const wk = document.createElement('span');
+          wk.className = 'week-tag';
+          wk.style.fontStyle = info.holiday ? 'italic' : '';
+          wk.textContent = info.term ? `${info.term} Wk ${info.week}` : info.holiday;
+          cell.appendChild(wk);
+        }
+      }
+
+      // Events
+      allEvents.filter(e => e.date === dateStr).forEach(ev => {
+        cell.appendChild(makeEventChip(ev));
+      });
+
+      // Grading notes
+      allNotes.filter(n => n.date === dateStr).forEach(note => {
+        cell.appendChild(makeNoteChip(note));
+      });
+
+      grid.appendChild(cell);
+    }
+
+    block.appendChild(grid);
+    monthsEl.appendChild(block);
+  });
+
+  buildPrintLegend();
+}
+
+// ── Grading panel ────────────────────────────────────
+function toggleGrading() {
+  gradingOpen = !gradingOpen;
+  document.getElementById('gradingDrawer').classList.toggle('open', gradingOpen);
+}
+
+function buildGradingPanel() {
+  const body = document.getElementById('gradingBody');
+  if (!body) return;
+  body.innerHTML = '';
+
+  const upcoming = allNotes.filter(n => !n.completed && n.date >= fmtDate(today.getFullYear(), today.getMonth()+1, today.getDate()));
+  const past     = allNotes.filter(n => !n.completed && n.date <  fmtDate(today.getFullYear(), today.getMonth()+1, today.getDate()));
+  const done     = allNotes.filter(n => n.completed);
+
+  if (allNotes.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'grading-empty';
+    empty.textContent = 'No grading notes yet. Add one using the 📋 Add Grading Note button.';
+    body.appendChild(empty);
+    return;
+  }
+
+  function renderGroup(label, notes, isPast) {
+    if (notes.length === 0) return;
+    // Group by date
+    const byDate = {};
+    notes.forEach(n => { if (!byDate[n.date]) byDate[n.date] = []; byDate[n.date].push(n); });
+
+    const section = document.createElement('div');
+    section.style.marginBottom = '1.25rem';
+    const sectionLabel = document.createElement('p');
+    sectionLabel.style.cssText = 'font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:0.5rem;';
+    sectionLabel.textContent = label;
+    section.appendChild(sectionLabel);
+
+    Object.keys(byDate).sort().forEach(date => {
+      const group = document.createElement('div');
+      group.className = 'grading-date-group';
+
+      const dateLabel = document.createElement('div');
+      dateLabel.className = 'grading-date-label' + (isPast ? ' past-label' : '');
+      const d = new Date(date);
+      dateLabel.textContent = d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short' });
+      group.appendChild(dateLabel);
+
+      byDate[date].forEach(note => {
+        const item = document.createElement('div');
+        item.className = 'grading-item' + (note.completed ? ' done-item' : '');
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = note.completed;
+        cb.onclick = async (e) => {
+          e.stopPropagation();
+          await fetch(`/api/notes/${note.id}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ completed: cb.checked })
+          });
+          await loadNotes();
+          buildGradingPanel();
+          buildCalendar();
+          applyHiddenClasses();
+        };
+
+        const text = document.createElement('span');
+        text.className = 'grading-item-text';
+        text.textContent = note.text;
+
+        const editBtn = document.createElement('span');
+        editBtn.className = 'grading-item-edit';
+        editBtn.textContent = '✏️';
+        editBtn.title = 'Edit';
+        editBtn.onclick = () => openNoteModal(note.date, note);
+
+        item.appendChild(cb);
+        item.appendChild(text);
+        item.appendChild(editBtn);
+        group.appendChild(item);
+      });
+
+      section.appendChild(group);
+    });
+    body.appendChild(section);
+  }
+
+  renderGroup('Upcoming', upcoming, false);
+  renderGroup('Overdue', past, true);
+  renderGroup('Completed', done, false);
+}
+
+// ── Note Modal ───────────────────────────────────────
+function openNoteModal(prefillDate='', note=null) {
+  editingNoteId = note ? note.id : null;
+  document.getElementById('noteModalTitle').textContent = note ? 'Edit Grading Note' : 'Add Grading Note';
+  document.getElementById('nDate').value = note ? note.date : prefillDate;
+  document.getElementById('nText').value = note ? note.text : '';
+  document.getElementById('noteDeleteBtn').style.display = note ? 'inline-block' : 'none';
+  document.getElementById('noteModalBackdrop').classList.remove('hidden');
+}
+
+function closeNoteModal() { document.getElementById('noteModalBackdrop').classList.add('hidden'); }
+function closeNoteModalOnBackdrop(e) { if (e.target === document.getElementById('noteModalBackdrop')) closeNoteModal(); }
+
+async function saveNote() {
+  const date = document.getElementById('nDate').value;
+  const text = document.getElementById('nText').value.trim();
+  if (!date || !text) { alert('Please fill in date and note.'); return; }
+  if (editingNoteId) {
+    await fetch(`/api/notes/${editingNoteId}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date, text })
+    });
+  } else {
+    await fetch('/api/notes', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date, text })
+    });
+  }
+  closeNoteModal();
+  await loadNotes();
+  buildGradingPanel();
+  buildCalendar();
+  applyHiddenClasses();
+}
+
+async function deleteNote() {
+  if (!editingNoteId || !confirm('Delete this grading note?')) return;
+  await fetch(`/api/notes/${editingNoteId}`, { method:'DELETE' });
+  closeNoteModal();
+  await loadNotes();
+  buildGradingPanel();
+  buildCalendar();
+  applyHiddenClasses();
+}
