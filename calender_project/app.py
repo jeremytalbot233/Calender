@@ -30,6 +30,17 @@ DEFAULT_THEME = {
     '--font-body':    'DM Sans',
     '--font-mono':    'DM Mono',
     '--font-heading': 'DM Serif Display',
+    # Year & term settings stored alongside theme for simplicity
+    'cal-year':       '2026',
+    'cal-subtitle':   '2026 — All Due Dates',
+    'term1-start':    '2026-01-27',
+    'term1-end':      '2026-04-10',
+    'term2-start':    '2026-04-27',
+    'term2-end':      '2026-07-03',
+    'term3-start':    '2026-07-20',
+    'term3-end':      '2026-09-25',
+    'term4-start':    '2026-10-12',
+    'term4-end':      '2026-12-11',
 }
 
 with app.app_context():
