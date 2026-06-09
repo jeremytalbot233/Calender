@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
-from models import db, Event, Class, Theme, Note, Template, Template
+from models import db, Event, Class, Theme, Note, Template
 import os, hashlib, hmac, pyotp, qrcode, io, base64
 from datetime import datetime, timedelta, date
 from functools import wraps
