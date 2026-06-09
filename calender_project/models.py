@@ -80,23 +80,6 @@ class Template(db.Model):
         }
 
 
-class Template(db.Model):
-    __tablename__ = 'templates'
-    id    = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    cls   = db.Column(db.Integer, db.ForeignKey('classes.id'), nullable=True)
-    type  = db.Column(db.String(30), nullable=False, default='assignment')
-    notes = db.Column(db.Text, default='')
-
-    def to_dict(self):
-        return {
-            'id':    self.id,
-            'title': self.title,
-            'cls':   self.cls,
-            'type':  self.type,
-            'notes': self.notes,
-        }
-
 class Theme(db.Model):
     __tablename__ = 'theme'
     id    = db.Column(db.Integer, primary_key=True)
