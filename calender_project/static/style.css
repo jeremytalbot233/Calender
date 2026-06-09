@@ -521,3 +521,95 @@ h1 { font-family: var(--font-heading), 'DM Serif Display', serif; font-size: 2.5
 }
 .event[draggable="true"] { cursor: grab; }
 .event[draggable="true"]:active { cursor: grabbing; }
+
+/* ── Bulk action bar ── */
+.bulk-bar {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg);
+  padding: 0.6rem 1rem; border-radius: 12px;
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25); z-index: 200;
+  font-family: var(--font-body), sans-serif;
+}
+.bulk-bar.hidden { display: none; }
+.bulk-bar .btn {
+  background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3);
+  color: var(--bg); font-size: 0.78rem; padding: 0.3rem 0.7rem;
+}
+.bulk-bar .btn:hover { background: rgba(255,255,255,0.25); }
+.bulk-bar .btn.active { background: var(--bg); color: var(--text); }
+.bulk-bar .btn.danger { border-color: rgb(255,150,150); color: rgb(255,180,180); }
+.bulk-bar .btn.danger:hover { background: rgba(200,100,120,0.3); }
+.bulk-count { font-size: 0.82rem; font-weight: 600; padding-right: 0.25rem; }
+
+/* ── Selected event ── */
+.event.selected {
+  outline: 2.5px solid var(--text);
+  outline-offset: 1px;
+  opacity: 1 !important;
+}
+
+/* ── Undo toast ── */
+.undo-toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: #2a2a2a; color: #fff;
+  padding: 0.6rem 1rem; border-radius: 10px;
+  display: flex; align-items: center; gap: 0.75rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 201;
+  font-size: 0.82rem; font-family: var(--font-body), sans-serif;
+  animation: slideUp 0.2s ease;
+}
+.undo-toast.hidden { display: none; }
+.undo-toast button {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; padding: 0.2rem 0.6rem; border-radius: 6px;
+  cursor: pointer; font-size: 0.78rem; font-family: var(--font-body), sans-serif;
+}
+.undo-toast button:hover { background: rgba(255,255,255,0.3); }
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Template rows ── */
+.template-row {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg);
+}
+.template-row-info { flex: 1; }
+.template-row-title { font-size: 0.85rem; font-weight: 500; }
+.template-row-meta  { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono), monospace; }
+
+@media (max-width: 768px) {
+  .bulk-bar { bottom: 0.75rem; left: 0.5rem; right: 0.5rem; transform: none; justify-content: center; }
+  .undo-toast { bottom: 5rem; right: 0.75rem; left: 0.75rem; }
+}
+
+/* ── Bulk action bar ── */
+.bulk-bar {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg);
+  border-radius: 12px; padding: 0.75rem 1.25rem;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200;
+  transition: opacity 0.2s;
+}
+.bulk-bar.hidden { display: none; }
+.bulk-count { font-family: var(--font-mono), monospace; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.bulk-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.bulk-bar .btn { background: rgba(255,255,255,0.15); color: var(--bg); border-color: rgba(255,255,255,0.3); font-size: 0.78rem; }
+.bulk-bar .btn:hover { background: rgba(255,255,255,0.3); }
+.bulk-bar .btn.active { background: var(--bg); color: var(--text); }
+.bulk-bar .btn.danger { border-color: rgb(255,150,150); color: rgb(255,180,180); }
+.bulk-bar .btn.danger:hover { background: rgba(255,100,100,0.3); }
+
+/* ── Selected event ── */
+.event.selected {
+  outline: 2.5px solid var(--text);
+  outline-offset: 1px;
+  opacity: 1 !important;
+  transform: scale(1.02);
+}
+
+/* ── Bulk mode cursor ── */
+body.bulk-mode .event { cursor: pointer; }
