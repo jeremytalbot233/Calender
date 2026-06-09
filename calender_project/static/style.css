@@ -512,3 +512,12 @@ h1 { font-family: var(--font-heading), 'DM Serif Display', serif; font-size: 2.5
   .event { font-size: 0.5rem; }
   .header-actions .btn { font-size: 0.65rem; padding: 0.3rem 0.5rem; }
 }
+
+/* ── Drag and drop ── */
+.day-cell.drag-over {
+  background: #e8f4e8 !important;
+  outline: 2px dashed rgb(60,160,60);
+  outline-offset: -2px;
+}
+.event[draggable="true"] { cursor: grab; }
+.event[draggable="true"]:active { cursor: grabbing; }
