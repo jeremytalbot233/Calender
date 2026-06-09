@@ -1214,3 +1214,142 @@ function toggleGrading() {
   const overlay = document.getElementById('drawerOverlay');
   if (overlay) overlay.style.display = (drawerOpen || gradingOpen) ? 'block' : 'none';
 }
+
+// ══════════════════════════════════════════
+// DRAG AND DROP
+// ══════════════════════════════════════════
+
+let dragEventId = null;
+
+function addDragHandlers(evEl, evId) {
+  evEl.draggable = true;
+  evEl.addEventListener('dragstart', (e) => {
+    dragEventId = evId;
+    evEl.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  evEl.addEventListener('dragend', () => {
+    evEl.style.opacity = '';
+    dragEventId = null;
+    document.querySelectorAll('.day-cell').forEach(c => c.classList.remove('drag-over'));
+  });
+}
+
+function addDropHandlers(cell, dateStr) {
+  cell.addEventListener('dragover', (e) => {
+    if (dragEventId === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    cell.classList.add('drag-over');
+  });
+  cell.addEventListener('dragleave', () => {
+    cell.classList.remove('drag-over');
+  });
+  cell.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    cell.classList.remove('drag-over');
+    if (dragEventId === null) return;
+    const ev = allEvents.find(e => e.id === dragEventId);
+    if (!ev || ev.date === dateStr) return;
+
+    await fetch(`/api/events/${dragEventId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...ev, date: dateStr })
+    });
+    await loadEvents();
+    render();
+  });
+}
+
+// Patch makeEventChip to add drag handlers
+const _origMakeEventChip = makeEventChip;
+function makeEventChip(ev) {
+  const el = _origMakeEventChip(ev);
+  addDragHandlers(el, ev.id);
+  return el;
+}
+
+// Patch buildCalendar day cells to add drop handlers
+// We hook into the existing cell creation by overriding after render
+const _dndOrigRender = render;
+function render() {
+  buildCalendar();
+  buildList();
+  buildWeek();
+  buildDrawer();
+  buildGradingPanel();
+  applyHiddenClasses();
+  applySearch();
+  // Add drop handlers to all day cells after render
+  document.querySelectorAll('.day-cell:not(.empty)').forEach(cell => {
+    const dateStr = cell.dataset.date;
+    if (dateStr) addDropHandlers(cell, dateStr);
+  });
+}
+
+// We need to store dateStr on each cell — patch buildCalendar to set data-date
+const _dndOrigBuildCalendar = buildCalendar;
+function buildCalendar() {
+  _dndOrigBuildCalendar();
+  // After calendar is built, add data-date to each non-empty cell
+  MONTHS.forEach(([yr, mo]) => {
+    const daysInMonth = new Date(yr, mo+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = fmtDate(yr, mo+1, d);
+      // Find cells by matching their day number content
+    }
+  });
+}
+
+// Simpler approach: patch the cell creation directly via a MutationObserver after render
+function attachDropHandlersToGrid() {
+  document.querySelectorAll('.cal-grid').forEach(grid => {
+    const cells = [...grid.querySelectorAll('.day-cell:not(.empty)')];
+    // Find the month/year for this grid from parent month-block
+    const block = grid.closest('.month-block');
+    if (!block) return;
+    const monthName = block.querySelector('.month-name')?.textContent;
+    const yr = parseInt(block.querySelector('.month-yr')?.textContent);
+    if (!monthName || !yr) return;
+    const mo = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(monthName);
+    if (mo === -1) return;
+
+    let dayCount = 0;
+    cells.forEach(cell => {
+      const numEl = cell.querySelector('.day-num-inner');
+      if (!numEl) return;
+      const d = parseInt(numEl.textContent);
+      if (isNaN(d)) return;
+      const dateStr = fmtDate(yr, mo+1, d);
+      cell.dataset.date = dateStr;
+      addDropHandlers(cell, dateStr);
+    });
+  });
+}
+
+// Override render to attach drop handlers after build
+function render() {
+  buildCalendar();
+  buildList();
+  buildWeek();
+  buildDrawer();
+  buildGradingPanel();
+  applyHiddenClasses();
+  applySearch();
+  attachDropHandlersToGrid();
+}
+
+// ══════════════════════════════════════════
+// EMAIL DIGEST
+// ══════════════════════════════════════════
+
+async function sendDigest() {
+  if (!confirm('Send the weekly digest email now?')) return;
+  const res = await fetch('/api/send-digest', { method: 'POST' });
+  if (res.ok) {
+    alert('✅ Digest sent! Check your inbox.');
+  } else {
+    alert('❌ Failed to send. Check your SMTP settings in Render environment variables.');
+  }
+}
