@@ -1,15 +1,13 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
 from models import db, Event, Class, Theme, Note
-import os
-import hashlib
-import hmac
-import pyotp
-import qrcode
-import qrcode.image.svg
-import io
-import base64
-from datetime import datetime, timedelta
+import os, hashlib, hmac, pyotp, qrcode, io, base64
+from datetime import datetime, timedelta, date
 from functools import wraps
+from apscheduler.schedulers.background import BackgroundScheduler
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import atexit
 
 app = Flask(__name__)
 
@@ -19,7 +17,6 @@ if uri and uri.startswith('postgres://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-# Session never expires — user stays logged in until they log out
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)
 
 db.init_app(app)
@@ -34,24 +31,14 @@ DEFAULT_CLASSES = [
 ]
 
 DEFAULT_THEME = {
-    '--bg':           '#f4f1eb',
-    '--surface':      '#fffef9',
-    '--border':       '#ddd8cc',
-    '--text':         '#1a1612',
-    '--muted':        '#7a7060',
-    '--font-body':    'DM Sans',
-    '--font-mono':    'DM Mono',
-    '--font-heading': 'DM Serif Display',
-    'cal-year':       '2026',
-    'cal-subtitle':   '2026 — All Due Dates',
-    'term1-start':    '2026-01-27',
-    'term1-end':      '2026-04-10',
-    'term2-start':    '2026-04-27',
-    'term2-end':      '2026-07-03',
-    'term3-start':    '2026-07-20',
-    'term3-end':      '2026-09-25',
-    'term4-start':    '2026-10-12',
-    'term4-end':      '2026-12-11',
+    '--bg': '#f4f1eb', '--surface': '#fffef9', '--border': '#ddd8cc',
+    '--text': '#1a1612', '--muted': '#7a7060',
+    '--font-body': 'DM Sans', '--font-mono': 'DM Mono', '--font-heading': 'DM Serif Display',
+    'cal-year': '2026', 'cal-subtitle': '2026 — All Due Dates',
+    'term1-start': '2026-01-27', 'term1-end': '2026-04-10',
+    'term2-start': '2026-04-27', 'term2-end': '2026-07-03',
+    'term3-start': '2026-07-20', 'term3-end': '2026-09-25',
+    'term4-start': '2026-10-12', 'term4-end': '2026-12-11',
 }
 
 with app.app_context():
@@ -66,116 +53,70 @@ with app.app_context():
     db.session.commit()
 
 
-# ── Auth helpers ─────────────────────────────────────
-def get_totp_secret():
-    """Get TOTP secret from env. Generate one if not set (first run)."""
-    return os.environ.get('TOTP_SECRET', '')
+# ── Auth ─────────────────────────────────────────────
+def hash_password(p):
+    return hmac.new(app.config['SECRET_KEY'].encode(), p.encode(), hashlib.sha256).hexdigest()
 
-def hash_password(password):
-    key = app.config['SECRET_KEY'].encode()
-    return hmac.new(key, password.encode(), hashlib.sha256).hexdigest()
-
-def check_password(password):
+def check_password(p):
     plain = os.environ.get('APP_PASSWORD', '')
-    if not plain:
-        return False
-    return hmac.compare_digest(hash_password(password), hash_password(plain))
+    return bool(plain) and hmac.compare_digest(hash_password(p), hash_password(plain))
 
 def verify_totp(code):
-    secret = get_totp_secret()
-    if not secret:
-        return False
-    totp = pyotp.TOTP(secret)
-    return totp.verify(code, valid_window=1)
+    secret = os.environ.get('TOTP_SECRET', '')
+    if not secret: return False
+    return pyotp.TOTP(secret).verify(code, valid_window=1)
 
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('logged_in'):
-            if request.is_json:
-                return jsonify({'error': 'Unauthorised'}), 401
+            if request.is_json: return jsonify({'error': 'Unauthorised'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
 
-
-# ── Auth routes ──────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if session.get('logged_in'):
-        return redirect(url_for('index'))
-
+    if session.get('logged_in'): return redirect(url_for('index'))
     error = None
     if request.method == 'POST':
-        password = request.form.get('password', '')
-        if check_password(password):
-            # Password correct — store in session and move to 2FA step
+        if check_password(request.form.get('password', '')):
             session['pw_verified'] = True
             return redirect(url_for('verify_2fa'))
-        else:
-            error = 'Incorrect password. Please try again.'
-
+        error = 'Incorrect password. Please try again.'
     return render_template('login.html', error=error)
-
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify_2fa():
-    # Must have passed password step first
-    if not session.get('pw_verified'):
-        return redirect(url_for('login'))
-    if session.get('logged_in'):
-        return redirect(url_for('index'))
-
-    totp_secret = get_totp_secret()
-
-    # If no TOTP secret set yet — show setup page
-    if not totp_secret:
-        return redirect(url_for('setup_2fa'))
-
+    if not session.get('pw_verified'): return redirect(url_for('login'))
+    if session.get('logged_in'): return redirect(url_for('index'))
+    totp_secret = os.environ.get('TOTP_SECRET', '')
+    if not totp_secret: return redirect(url_for('setup_2fa'))
     error = None
     if request.method == 'POST':
-        code = request.form.get('code', '').replace(' ', '')
-        if verify_totp(code):
+        if verify_totp(request.form.get('code', '').replace(' ', '')):
             session.permanent = True
             session['logged_in'] = True
             session.pop('pw_verified', None)
             return redirect(url_for('index'))
-        else:
-            error = 'Invalid code. Please try again.'
-
+        error = 'Invalid code. Please try again.'
     return render_template('verify.html', error=error)
-
 
 @app.route('/setup-2fa')
 def setup_2fa():
-    """Show QR code for first-time TOTP setup."""
-    if not session.get('pw_verified'):
-        return redirect(url_for('login'))
-
-    totp_secret = get_totp_secret()
-    if not totp_secret:
-        # Generate a new secret to display — user must set it as env var
-        totp_secret = pyotp.random_base32()
-
-    totp = pyotp.TOTP(totp_secret)
-    uri  = totp.provisioning_uri(name='Class Calendar', issuer_name='My Calendar App')
-
-    # Generate QR code as base64 PNG
+    if not session.get('pw_verified'): return redirect(url_for('login'))
+    totp_secret = os.environ.get('TOTP_SECRET', '') or pyotp.random_base32()
+    uri = pyotp.TOTP(totp_secret).provisioning_uri(name='Class Calendar', issuer_name='My Calendar App')
     img = qrcode.make(uri)
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
+    buf = io.BytesIO(); img.save(buf, format='PNG')
     qr_b64 = base64.b64encode(buf.getvalue()).decode()
-
     return render_template('setup_2fa.html', secret=totp_secret, qr_b64=qr_b64)
-
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-
-# ── Pages ────────────────────────────────────────────
 @app.route('/')
 @login_required
 def index():
@@ -301,6 +242,162 @@ def update_note(note_id):
 def delete_note(note_id):
     n = Note.query.get_or_404(note_id)
     db.session.delete(n); db.session.commit(); return '', 204
+
+
+# ── iCal export ──────────────────────────────────────
+@app.route('/export/ical')
+@login_required
+def export_ical():
+    events = Event.query.order_by(Event.date).all()
+    classes = {c.id: c for c in Class.query.all()}
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Class Calendar//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'X-WR-CALNAME:Class Calendar',
+        'X-WR-TIMEZONE:Australia/Adelaide',
+    ]
+
+    for ev in events:
+        cls = classes.get(ev.cls)
+        cls_name = cls.name if cls else 'Unknown'
+        dt = ev.date.replace('-', '')
+        uid = f'event-{ev.id}@classcalendar'
+        summary = f'{ev.title} [{cls_name}]'
+        description = f'Class: {cls_name}\\nType: {ev.type}'
+        if ev.notes:
+            description += f'\\nNotes: {ev.notes}'
+
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:{uid}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{description}',
+            f'STATUS:{"COMPLETED" if ev.completed else "CONFIRMED"}',
+            'END:VEVENT',
+        ]
+
+    lines.append('END:VCALENDAR')
+    ical_content = '\r\n'.join(lines)
+
+    return Response(
+        ical_content,
+        mimetype='text/calendar',
+        headers={'Content-Disposition': 'attachment; filename=class-calendar.ics'}
+    )
+
+
+# ── Email digest ─────────────────────────────────────
+def send_weekly_digest():
+    """Send Monday morning digest of this week's due dates."""
+    with app.app_context():
+        try:
+            smtp_user = os.environ.get('SMTP_USER', '')
+            smtp_pass = os.environ.get('SMTP_PASS', '')
+            to_email  = os.environ.get('DIGEST_EMAIL', smtp_user)
+
+            if not smtp_user or not smtp_pass:
+                print('Email not configured — skipping digest')
+                return
+
+            today = date.today()
+            week_end = today + timedelta(days=6)
+
+            events = Event.query.filter(
+                Event.date >= today.isoformat(),
+                Event.date <= week_end.isoformat(),
+                Event.completed == False
+            ).order_by(Event.date).all()
+
+            classes = {c.id: c for c in Class.query.all()}
+
+            # Build HTML email
+            if not events:
+                body_html = '<p>No due dates this week. Enjoy the break! 🎉</p>'
+            else:
+                rows = ''
+                for ev in events:
+                    cls = classes.get(ev.cls)
+                    cls_name = cls.name if cls else 'Unknown'
+                    bg = cls.bg if cls else '#eee'
+                    color = cls.color if cls else '#333'
+                    d = datetime.strptime(ev.date, '%Y-%m-%d')
+                    date_str = d.strftime('%A %-d %b')
+                    rows += f'''
+                    <tr>
+                      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-family:monospace;font-size:13px;color:#666;">{date_str}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:14px;">{ev.title}</td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #eee;">
+                        <span style="background:{bg};color:{color};padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600;">{cls_name}</span>
+                      </td>
+                      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;color:#888;">{ev.type}</td>
+                    </tr>'''
+
+                body_html = f'''
+                <table style="border-collapse:collapse;width:100%;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #ddd;">
+                  <thead>
+                    <tr style="background:#1a1612;color:#f4f1eb;">
+                      <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:0.05em;">DATE</th>
+                      <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:0.05em;">TASK</th>
+                      <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:0.05em;">CLASS</th>
+                      <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:0.05em;">TYPE</th>
+                    </tr>
+                  </thead>
+                  <tbody>{rows}</tbody>
+                </table>'''
+
+            week_str = f"{today.strftime('%-d %b')} – {week_end.strftime('%-d %b %Y')}"
+            html = f'''
+            <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f1eb;padding:24px;border-radius:12px;">
+              <h1 style="font-family:Georgia,serif;font-size:24px;color:#1a1612;margin-bottom:4px;">📅 Class Calendar</h1>
+              <p style="font-family:monospace;font-size:13px;color:#7a7060;margin-bottom:24px;">Week of {week_str}</p>
+              <h2 style="font-size:16px;color:#1a1612;margin-bottom:12px;">Due this week — {len(events)} item{"s" if len(events) != 1 else ""}</h2>
+              {body_html}
+              <p style="font-size:12px;color:#aaa;margin-top:24px;text-align:center;">Sent automatically every Monday morning from your Class Calendar</p>
+            </div>'''
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f'📅 Class Calendar — Week of {week_str}'
+            msg['From']    = smtp_user
+            msg['To']      = to_email
+            msg.attach(MIMEText(html, 'html'))
+
+            # Outlook uses port 587 with STARTTLS
+            with smtplib.SMTP('smtp.office365.com', 587) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+
+            print(f'Weekly digest sent to {to_email}')
+
+        except Exception as e:
+            print(f'Failed to send digest: {e}')
+
+
+@app.route('/api/send-digest', methods=['POST'])
+@login_required
+def trigger_digest():
+    """Manual trigger for testing the email digest."""
+    send_weekly_digest()
+    return jsonify({'ok': True})
+
+
+# ── Scheduler ────────────────────────────────────────
+scheduler = BackgroundScheduler(timezone='Australia/Adelaide')
+scheduler.add_job(
+    func=send_weekly_digest,
+    trigger='cron',
+    day_of_week='mon',
+    hour=7,
+    minute=0
+)
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
 
 
 # ── Helpers ──────────────────────────────────────────
