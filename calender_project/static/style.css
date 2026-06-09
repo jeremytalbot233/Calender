@@ -386,3 +386,129 @@ h1 { font-family: var(--font-heading), 'DM Serif Display', serif; font-size: 2.5
 .grading-item-edit { font-size: 0.65rem; color: var(--muted); cursor: pointer; padding: 0 0.2rem; flex-shrink: 0; }
 .grading-item-edit:hover { color: var(--text); }
 .grading-empty { font-size: 0.78rem; color: var(--muted); font-style: italic; padding: 0.5rem 0; }
+
+/* ══════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Layout ── */
+  .main-content { padding: 1rem; }
+  .main-content.drawer-open { margin-right: 0; }
+
+  /* ── Header ── */
+  h1 { font-size: 1.8rem; }
+  .header-actions { flex-wrap: wrap; gap: 0.4rem; }
+  .header-actions .btn { font-size: 0.72rem; padding: 0.35rem 0.6rem; }
+
+  /* ── Search ── */
+  .search-bar input { max-width: 100%; }
+
+  /* ── Legend ── */
+  .legend { gap: 0.4rem; }
+  .legend-item { font-size: 0.72rem; padding: 0.25rem 0.55rem; }
+
+  /* ── Controls ── */
+  .controls { gap: 0.4rem; }
+  .btn { font-size: 0.78rem; padding: 0.38rem 0.7rem; }
+  .divider { display: none; }
+
+  /* ── Calendar grid — compact on mobile ── */
+  .cal-grid { grid-template-columns: repeat(7, 1fr); }
+  .day-label { font-size: 0.55rem; padding: 0.3rem 0; }
+  .day-cell { min-height: 52px; padding: 0.2rem; }
+  .day-num { font-size: 0.62rem; }
+  .today-cell .day-num-inner { width: 16px; height: 16px; font-size: 0.58rem; }
+  .add-hint { display: none; }
+  .week-tag { display: none; }
+
+  /* ── Events on mobile — very compact ── */
+  .event {
+    font-size: 0.55rem;
+    padding: 0.12rem 0.25rem;
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .grading-note {
+    font-size: 0.55rem;
+    padding: 0.12rem 0.25rem;
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Month header ── */
+  .month-name { font-size: 1.1rem; }
+  .month-count { display: none; }
+
+  /* ── Term banner ── */
+  .term-banner { font-size: 0.6rem; padding: 0.2rem 0.75rem; }
+
+  /* ── Week view — scrollable on mobile ── */
+  #viewWeek { overflow-x: auto; }
+  .week-grid {
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+    min-width: 700px;
+  }
+  .week-nav { flex-wrap: wrap; gap: 0.4rem; }
+  .week-title { font-size: 1rem; width: 100%; }
+
+  /* ── List view ── */
+  .list-table { font-size: 0.75rem; }
+  .list-table th { font-size: 0.6rem; padding: 0.5rem 0.6rem; }
+  .list-table td { padding: 0.5rem 0.6rem; }
+  /* Hide type and edit columns on small screens */
+  .list-table th:nth-child(4),
+  .list-table td:nth-child(4),
+  .list-table th:nth-child(6),
+  .list-table td:nth-child(6) { display: none; }
+
+  /* ── Drawers — full width on mobile ── */
+  .drawer {
+    width: 100vw !important;
+    right: -100vw !important;
+  }
+  .drawer.open { right: 0 !important; }
+  .grading-drawer {
+    width: 100vw !important;
+    left: -100vw !important;
+  }
+  .grading-drawer.open { left: 0 !important; }
+
+  /* ── Drawer toggles — smaller on mobile ── */
+  .drawer-toggle { font-size: 0.6rem; padding: 0.6rem 0.3rem; }
+  .grading-toggle { font-size: 0.6rem; padding: 0.6rem 0.3rem; }
+
+  /* ── Modals — full width on mobile ── */
+  .modal {
+    width: 95vw !important;
+    padding: 1.25rem;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  .theme-grid { grid-template-columns: 1fr 1fr; }
+
+  /* ── Month block term banner ── */
+  .month-header { padding: 0.6rem 0.75rem; }
+
+  /* ── List filters ── */
+  .list-filters { gap: 0.35rem; }
+
+  /* ── Print legend hidden on mobile ── */
+  .print-legend { display: none !important; }
+}
+
+/* Extra small phones */
+@media (max-width: 400px) {
+  .main-content { padding: 0.6rem; }
+  h1 { font-size: 1.5rem; }
+  .day-cell { min-height: 44px; padding: 0.15rem; }
+  .day-label { font-size: 0.5rem; }
+  .day-num { font-size: 0.55rem; }
+  .event { font-size: 0.5rem; }
+  .header-actions .btn { font-size: 0.65rem; padding: 0.3rem 0.5rem; }
+}
