@@ -1353,3 +1353,709 @@ async function sendDigest() {
     alert('❌ Failed to send. Check your SMTP settings in Render environment variables.');
   }
 }
+
+// ══════════════════════════════════════════
+// UNDO
+// ══════════════════════════════════════════
+
+let undoStack = null; // stores { type, data } for last action
+let undoTimer = null;
+
+function pushUndo(type, data) {
+  undoStack = { type, data };
+  showUndoToast(type);
+}
+
+function showUndoToast(type) {
+  const msgs = {
+    delete:   'Event deleted',
+    bulk_delete: 'Events deleted',
+    complete: 'Marked complete',
+    bulk_complete: 'Events completed',
+    move:     'Event moved',
+    bulk_move: 'Events moved',
+    edit:     'Event updated',
+  };
+  document.getElementById('undoMsg').textContent = msgs[type] || 'Action performed';
+  document.getElementById('undoToast').classList.remove('hidden');
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    document.getElementById('undoToast').classList.add('hidden');
+    undoStack = null;
+  }, 6000);
+}
+
+async function doUndo() {
+  if (!undoStack) return;
+  const { type, data } = undoStack;
+  undoStack = null;
+  document.getElementById('undoToast').classList.add('hidden');
+
+  if (type === 'delete') {
+    // Recreate the deleted event
+    await fetch('/api/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, recur: 'none', recur_end: '' })
+    });
+  } else if (type === 'bulk_delete') {
+    for (const ev of data) {
+      await fetch('/api/events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...ev, recur: 'none', recur_end: '' })
+      });
+    }
+  } else if (type === 'complete' || type === 'edit' || type === 'move') {
+    await fetch(`/api/events/${data.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } else if (type === 'bulk_complete' || type === 'bulk_move') {
+    for (const ev of data) {
+      await fetch(`/api/events/${ev.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ev)
+      });
+    }
+  }
+
+  await loadEvents();
+  render();
+}
+
+// Patch deleteEvent to support undo
+const _origDeleteEvent = deleteEvent;
+async function deleteEvent() {
+  if (!editingId || !confirm('Delete this event?')) return;
+  const ev = allEvents.find(e => e.id === editingId);
+  await fetch(`/api/events/${editingId}`, { method: 'DELETE' });
+  pushUndo('delete', ev);
+  closeModal();
+  await loadEvents();
+  render();
+}
+
+// Patch saveEvent to support undo for edits
+const _origSaveEvent = saveEvent;
+async function saveEvent() {
+  const payload = {
+    date:      document.getElementById('fDate').value,
+    title:     document.getElementById('fTitle').value.trim(),
+    cls:       parseInt(document.getElementById('fCls').value),
+    type:      document.getElementById('fType').value,
+    notes:     document.getElementById('fNotes').value.trim(),
+    recur:     document.getElementById('fRecur').value,
+    recur_end: document.getElementById('fRecurEnd').value,
+  };
+  if (!payload.date || !payload.title) { alert('Please fill in date and title.'); return; }
+
+  if (editingId) {
+    const prev = allEvents.find(e => e.id === editingId);
+    pushUndo('edit', prev);
+    await fetch(`/api/events/${editingId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+  } else {
+    await fetch('/api/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+  }
+  closeModal();
+  await loadEvents();
+  render();
+}
+
+// Patch toggleComplete for undo
+const _origToggleComplete = toggleComplete;
+async function toggleComplete() {
+  if (!editingId) return;
+  const ev = allEvents.find(e => e.id === editingId);
+  if (!ev) return;
+  pushUndo('complete', { ...ev });
+  await fetch(`/api/events/${editingId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...ev, completed: !ev.completed })
+  });
+  closeModal();
+  await loadEvents();
+  render();
+}
+
+
+// ══════════════════════════════════════════
+// BULK SELECTION
+// ══════════════════════════════════════════
+
+let selectedIds = new Set();
+
+function toggleSelectEvent(id, el) {
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    el.classList.remove('selected');
+  } else {
+    selectedIds.add(id);
+    el.classList.add('selected');
+  }
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('.event.selected').forEach(el => el.classList.remove('selected'));
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  if (selectedIds.size > 0) {
+    bar.classList.remove('hidden');
+    count.textContent = `${selectedIds.size} selected`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+async function bulkDelete() {
+  if (!confirm(`Delete ${selectedIds.size} events?`)) return;
+  const ids = [...selectedIds];
+  const evs = allEvents.filter(e => ids.includes(e.id));
+  pushUndo('bulk_delete', evs);
+  await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', ids })
+  });
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+async function bulkComplete() {
+  const ids = [...selectedIds];
+  const evs = allEvents.filter(e => ids.includes(e.id));
+  pushUndo('bulk_complete', evs.map(e => ({ ...e })));
+  await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'complete', ids })
+  });
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+function openBulkMove() {
+  document.getElementById('bulkMoveDate').value = '';
+  document.getElementById('bulkMoveBackdrop').classList.remove('hidden');
+}
+
+function closeBulkMove(e) {
+  if (!e || e.target === document.getElementById('bulkMoveBackdrop'))
+    document.getElementById('bulkMoveBackdrop').classList.add('hidden');
+}
+
+async function confirmBulkMove() {
+  const newDate = document.getElementById('bulkMoveDate').value;
+  if (!newDate) { alert('Please select a date.'); return; }
+  const ids = [...selectedIds];
+  const evs = allEvents.filter(e => ids.includes(e.id));
+  pushUndo('bulk_move', evs.map(e => ({ ...e })));
+  await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'move', ids, date: newDate })
+  });
+  document.getElementById('bulkMoveBackdrop').classList.add('hidden');
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+// Patch makeEventChip to support click-to-select (hold Shift or use select mode)
+let selectMode = false;
+
+const _bulkOrigMakeEventChip = makeEventChip;
+function makeEventChip(ev) {
+  const el = _bulkOrigMakeEventChip(ev);
+  // Override onclick: if in select mode or shift held, toggle selection
+  const origClick = el.onclick;
+  el.onclick = (e) => {
+    if (e.shiftKey || selectMode) {
+      e.stopPropagation();
+      toggleSelectEvent(ev.id, el);
+      return;
+    }
+    if (origClick) origClick(e);
+  };
+  // Right-click to toggle select mode
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    toggleSelectEvent(ev.id, el);
+  });
+  return el;
+}
+
+
+// ══════════════════════════════════════════
+// TEMPLATES
+// ══════════════════════════════════════════
+
+let allTemplates = [];
+
+async function loadTemplates() {
+  const res = await fetch('/api/templates');
+  allTemplates = await res.json();
+}
+
+function openTemplatesModal() {
+  // Populate class dropdown in template form
+  const tmplCls = document.getElementById('tmplCls');
+  tmplCls.innerHTML = '<option value="">Any class</option>';
+  allClasses.filter(c => !c.archived).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name;
+    tmplCls.appendChild(opt);
+  });
+  // Pre-fill from current modal if open
+  const curTitle = document.getElementById('fTitle')?.value;
+  const curCls   = document.getElementById('fCls')?.value;
+  const curType  = document.getElementById('fType')?.value;
+  if (curTitle) document.getElementById('tmplTitle').value = curTitle;
+  if (curCls)   tmplCls.value = curCls;
+  if (curType)  document.getElementById('tmplType').value = curType;
+
+  buildTemplatesList();
+  document.getElementById('templatesModalBackdrop').classList.remove('hidden');
+}
+
+function closeTemplatesModal() {
+  document.getElementById('templatesModalBackdrop').classList.add('hidden');
+}
+
+function closeTemplatesModalBackdrop(e) {
+  if (e.target === document.getElementById('templatesModalBackdrop')) closeTemplatesModal();
+}
+
+function buildTemplatesList() {
+  const el = document.getElementById('templatesList');
+  el.innerHTML = '';
+  if (allTemplates.length === 0) {
+    el.innerHTML = '<p style="font-size:0.78rem;color:var(--muted);font-style:italic;">No templates yet. Save one below.</p>';
+    return;
+  }
+  allTemplates.forEach(t => {
+    const cls = t.cls ? getClass(t.cls) : null;
+    const row = document.createElement('div');
+    row.className = 'template-row';
+    row.innerHTML = `
+      <div class="template-row-info">
+        <div class="template-row-title">${t.title}</div>
+        <div class="template-row-meta">${cls ? cls.name : 'Any class'} · ${t.type}</div>
+      </div>
+      <button class="btn active" style="padding:0.25rem 0.6rem;font-size:0.72rem;" onclick="applyTemplate(${t.id})">Use</button>
+      <button class="btn danger" style="padding:0.25rem 0.5rem;font-size:0.72rem;" onclick="deleteTemplate(${t.id})">🗑</button>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function applyTemplate(id) {
+  const t = allTemplates.find(x => x.id === id);
+  if (!t) return;
+  closeTemplatesModal();
+  // Open event modal pre-filled with template
+  openModal('', null);
+  document.getElementById('fTitle').value = t.title;
+  document.getElementById('fType').value  = t.type;
+  document.getElementById('fNotes').value = t.notes || '';
+  if (t.cls) document.getElementById('fCls').value = t.cls;
+}
+
+async function saveTemplate() {
+  const title = document.getElementById('tmplTitle').value.trim();
+  if (!title) { alert('Please enter a template title.'); return; }
+  const cls  = document.getElementById('tmplCls').value;
+  const type = document.getElementById('tmplType').value;
+  await fetch('/api/templates', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, cls: cls ? parseInt(cls) : null, type })
+  });
+  await loadTemplates();
+  document.getElementById('tmplTitle').value = '';
+  buildTemplatesList();
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Delete this template?')) return;
+  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+  await loadTemplates();
+  buildTemplatesList();
+}
+
+// Add "Use Template" button to event modal open
+const _tmplOrigOpenModal = openModal;
+function openModal(prefillDate='', event=null) {
+  _tmplOrigOpenModal(prefillDate, event);
+  // Add template button to modal if not already there
+  const modal = document.querySelector('.modal');
+  if (!modal) return;
+  let tmplBtn = document.getElementById('useTemplateBtn');
+  if (!tmplBtn) {
+    tmplBtn = document.createElement('button');
+    tmplBtn.id = 'useTemplateBtn';
+    tmplBtn.className = 'btn';
+    tmplBtn.style.cssText = 'width:100%;margin-bottom:0.5rem;font-size:0.78rem;';
+    tmplBtn.textContent = '⭐ Use a Template';
+    tmplBtn.onclick = openTemplatesModal;
+    const firstField = modal.querySelector('.field');
+    if (firstField) modal.insertBefore(tmplBtn, firstField);
+  }
+  tmplBtn.style.display = event ? 'none' : 'block';
+}
+
+// Load templates on init
+const _tmplOrigInit = init;
+async function init() {
+  await Promise.all([loadClasses(), loadTheme(), loadNotes(), loadTemplates()]);
+  await loadEvents();
+  applyTheme();
+  applyYearSettings();
+  buildLegend();
+  buildDrawer();
+  buildGradingPanel();
+  render();
+  buildThemePresets();
+}
+
+// ══════════════════════════════════════════
+// UNDO
+// ══════════════════════════════════════════
+
+const undoStack = [];
+const MAX_UNDO = 10;
+
+function pushUndo(action) {
+  undoStack.push(action);
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  document.getElementById('undoBtn').style.display = 'inline-block';
+}
+
+function clearUndo() {
+  undoStack.length = 0;
+  document.getElementById('undoBtn').style.display = 'none';
+}
+
+async function undoLast() {
+  if (!undoStack.length) return;
+  const action = undoStack.pop();
+  if (!undoStack.length) document.getElementById('undoBtn').style.display = 'none';
+
+  if (action.type === 'delete_single') {
+    // Restore a single deleted event
+    await fetch('/api/events/restore', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snapshots: [action.snapshot] })
+    });
+  } else if (action.type === 'bulk') {
+    await fetch('/api/events/restore', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snapshots: action.snapshots })
+    });
+  } else if (action.type === 'edit') {
+    await fetch(`/api/events/${action.snapshot.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(action.snapshot)
+    });
+  }
+
+  await loadEvents();
+  render();
+}
+
+// Keyboard shortcut Ctrl+Z / Cmd+Z
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    undoLast();
+  }
+});
+
+// Patch deleteEvent to push undo
+const _origDeleteEvent = deleteEvent;
+async function deleteEvent() {
+  if (!editingId || !confirm('Delete this event?')) return;
+  const ev = allEvents.find(e => e.id === editingId);
+  if (ev) pushUndo({ type: 'delete_single', snapshot: { ...ev } });
+  await fetch(`/api/events/${editingId}`, { method: 'DELETE' });
+  closeModal();
+  await loadEvents();
+  render();
+}
+
+// Patch saveEvent to push undo on edit
+const _origSaveEvent = saveEvent;
+async function saveEvent() {
+  const payload = {
+    date:      document.getElementById('fDate').value,
+    title:     document.getElementById('fTitle').value.trim(),
+    cls:       parseInt(document.getElementById('fCls').value),
+    type:      document.getElementById('fType').value,
+    notes:     document.getElementById('fNotes').value.trim(),
+    recur:     document.getElementById('fRecur').value,
+    recur_end: document.getElementById('fRecurEnd').value,
+  };
+  if (!payload.date || !payload.title) { alert('Please fill in date and title.'); return; }
+
+  if (editingId) {
+    const ev = allEvents.find(e => e.id === editingId);
+    if (ev) pushUndo({ type: 'edit', snapshot: { ...ev } });
+    await fetch(`/api/events/${editingId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+  } else {
+    await fetch('/api/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+  }
+  closeModal();
+  await loadEvents();
+  render();
+}
+
+
+// ══════════════════════════════════════════
+// BULK SELECT
+// ══════════════════════════════════════════
+
+let selectedIds = new Set();
+
+function toggleSelectEvent(id, el) {
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    el.classList.remove('selected');
+  } else {
+    selectedIds.add(id);
+    el.classList.add('selected');
+  }
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  if (selectedIds.size > 0) {
+    bar.classList.remove('hidden');
+    count.textContent = `${selectedIds.size} selected`;
+    document.body.classList.add('bulk-mode');
+  } else {
+    bar.classList.add('hidden');
+    document.body.classList.remove('bulk-mode');
+  }
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('.event.selected').forEach(el => el.classList.remove('selected'));
+  updateBulkBar();
+}
+
+// Patch makeEventChip to support shift-click selection
+const _bulkOrigMakeEventChip = makeEventChip;
+function makeEventChip(ev) {
+  const el = _bulkOrigMakeEventChip(ev);
+  const origClick = el.onclick;
+  el.onclick = (e) => {
+    if (e.shiftKey) {
+      e.stopPropagation();
+      toggleSelectEvent(ev.id, el);
+    } else {
+      if (selectedIds.size > 0) {
+        // In bulk mode, single click also selects
+        e.stopPropagation();
+        toggleSelectEvent(ev.id, el);
+      } else {
+        origClick && origClick(e);
+      }
+    }
+  };
+  // Re-apply selected state after render
+  if (selectedIds.has(ev.id)) el.classList.add('selected');
+  return el;
+}
+
+async function bulkDelete() {
+  if (!selectedIds.size || !confirm(`Delete ${selectedIds.size} events?`)) return;
+  const ids = [...selectedIds];
+  const snapshots = allEvents.filter(e => ids.includes(e.id)).map(e => ({ ...e }));
+  const res = await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', ids })
+  });
+  const data = await res.json();
+  pushUndo({ type: 'bulk', snapshots });
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+async function bulkComplete() {
+  if (!selectedIds.size) return;
+  const ids = [...selectedIds];
+  const snapshots = allEvents.filter(e => ids.includes(e.id)).map(e => ({ ...e }));
+  await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'complete', ids })
+  });
+  pushUndo({ type: 'bulk', snapshots });
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+function openBulkMove() {
+  document.getElementById('bulkMoveDate').value = '';
+  document.getElementById('bulkMoveBackdrop').classList.remove('hidden');
+}
+
+function closeBulkMove(e) {
+  if (!e || e.target === document.getElementById('bulkMoveBackdrop'))
+    document.getElementById('bulkMoveBackdrop').classList.add('hidden');
+}
+
+async function bulkMove() {
+  const newDate = document.getElementById('bulkMoveDate').value;
+  if (!newDate) { alert('Please pick a date.'); return; }
+  const ids = [...selectedIds];
+  const snapshots = allEvents.filter(e => ids.includes(e.id)).map(e => ({ ...e }));
+  await fetch('/api/events/bulk', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'move', ids, date: newDate })
+  });
+  pushUndo({ type: 'bulk', snapshots });
+  document.getElementById('bulkMoveBackdrop').classList.add('hidden');
+  clearSelection();
+  await loadEvents();
+  render();
+}
+
+
+// ══════════════════════════════════════════
+// TEMPLATES
+// ══════════════════════════════════════════
+
+let allTemplates = [];
+
+async function loadTemplates() {
+  const res = await fetch('/api/templates');
+  allTemplates = await res.json();
+}
+
+function openTemplateModal() {
+  buildTemplateList();
+  populateTemplateCls();
+  document.getElementById('templateModalBackdrop').classList.remove('hidden');
+}
+
+function closeTemplateModal() {
+  document.getElementById('templateModalBackdrop').classList.add('hidden');
+}
+
+function closeTemplateModalOnBackdrop(e) {
+  if (e.target === document.getElementById('templateModalBackdrop')) closeTemplateModal();
+}
+
+function buildTemplateList() {
+  const el = document.getElementById('templateListEl');
+  el.innerHTML = '';
+  if (!allTemplates.length) {
+    el.innerHTML = '<p style="font-size:0.78rem;color:var(--muted);font-style:italic;">No templates yet. Add one below.</p>';
+    return;
+  }
+  allTemplates.forEach(t => {
+    const cls = allClasses.find(c => c.id === t.cls);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);';
+    row.innerHTML = `
+      <span style="flex:1;font-size:0.85rem;">${t.title}</span>
+      ${cls ? `<span class="pill" style="background:${cls.bg};color:${cls.color};">${cls.name}</span>` : ''}
+      <span style="font-size:0.72rem;color:var(--muted);font-family:var(--font-mono),monospace;">${t.type}</span>
+      <button class="btn danger" onclick="deleteTemplate(${t.id})" style="padding:0.2rem 0.5rem;font-size:0.72rem;">🗑</button>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function populateTemplateCls() {
+  const sel = document.getElementById('tmplCls');
+  sel.innerHTML = '<option value="">No default</option>';
+  allClasses.filter(c => !c.archived).forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+  });
+}
+
+async function saveTemplate() {
+  const title = document.getElementById('tmplTitle').value.trim();
+  if (!title) { alert('Please enter a title.'); return; }
+  const cls   = document.getElementById('tmplCls').value;
+  const type  = document.getElementById('tmplType').value;
+  const notes = document.getElementById('tmplNotes').value.trim();
+  await fetch('/api/templates', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, cls: cls ? parseInt(cls) : null, type, notes })
+  });
+  document.getElementById('tmplTitle').value = '';
+  document.getElementById('tmplNotes').value = '';
+  await loadTemplates();
+  buildTemplateList();
+  populateTemplatePicker();
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Delete this template?')) return;
+  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+  await loadTemplates();
+  buildTemplateList();
+  populateTemplatePicker();
+}
+
+function populateTemplatePicker() {
+  const sel = document.getElementById('templatePicker');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Start from scratch —</option>';
+  allTemplates.forEach(t => {
+    sel.innerHTML += `<option value="${t.id}">${t.title}</option>`;
+  });
+  // Hide picker if no templates
+  document.getElementById('templatePickerField').style.display = allTemplates.length ? 'block' : 'none';
+}
+
+function applyTemplate(tmplId) {
+  if (!tmplId) return;
+  const t = allTemplates.find(t => t.id === parseInt(tmplId));
+  if (!t) return;
+  document.getElementById('fTitle').value = t.title;
+  document.getElementById('fType').value  = t.type;
+  document.getElementById('fNotes').value = t.notes || '';
+  if (t.cls) document.getElementById('fCls').value = t.cls;
+}
+
+// Patch openModal to populate template picker
+const _tmplOrigOpenModal = openModal;
+function openModal(prefillDate='', event=null) {
+  _tmplOrigOpenModal(prefillDate, event);
+  populateTemplatePicker();
+  // Reset picker
+  const picker = document.getElementById('templatePicker');
+  if (picker) picker.value = '';
+}
+
+// Patch init to load templates
+const _tmplOrigInit = init;
+async function init() {
+  await Promise.all([loadClasses(), loadTheme(), loadNotes(), loadTemplates()]);
+  await loadEvents();
+  applyTheme();
+  applyYearSettings();
+  buildLegend();
+  buildDrawer();
+  buildGradingPanel();
+  render();
+  buildThemePresets();
+}
