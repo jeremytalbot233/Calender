@@ -1179,3 +1179,38 @@ function scrollToCurrentMonth() {
     if (blocks[0]) setTimeout(() => blocks[0].scrollIntoView({ behavior:'smooth', block:'start' }), 150);
   }
 }
+
+// ── Mobile: close drawers on backdrop tap ───────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Add overlay div for mobile drawer backdrop
+  const overlay = document.createElement('div');
+  overlay.id = 'drawerOverlay';
+  overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:49;';
+  overlay.onclick = () => {
+    if (drawerOpen) toggleDrawer();
+    if (gradingOpen) toggleGrading();
+  };
+  document.body.appendChild(overlay);
+});
+
+// Patch toggleDrawer to show overlay on mobile
+const _origToggleDrawer = toggleDrawer;
+function toggleDrawer() {
+  drawerOpen = !drawerOpen;
+  document.getElementById('drawer').classList.toggle('open', drawerOpen);
+  document.getElementById('mainContent').classList.toggle('drawer-open', drawerOpen);
+  const toggle = document.getElementById('drawerToggle');
+  toggle.classList.toggle('open', drawerOpen);
+  toggle.textContent = drawerOpen ? '⟶ Upcoming' : '⟵ Upcoming';
+  const overlay = document.getElementById('drawerOverlay');
+  if (overlay) overlay.style.display = (drawerOpen || gradingOpen) ? 'block' : 'none';
+}
+
+// Patch toggleGrading to show overlay on mobile
+const _origToggleGrading = toggleGrading;
+function toggleGrading() {
+  gradingOpen = !gradingOpen;
+  document.getElementById('gradingDrawer').classList.toggle('open', gradingOpen);
+  const overlay = document.getElementById('drawerOverlay');
+  if (overlay) overlay.style.display = (drawerOpen || gradingOpen) ? 'block' : 'none';
+}
