@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Class Calendar — Two-Factor Auth</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #f4f1eb; color: #1a1612;
+    min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .card {
+    background: #fffef9; border: 1.5px solid #ddd8cc;
+    border-radius: 14px; padding: 2.5rem; width: 360px;
+    max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  }
+  .icon { font-size: 2.5rem; text-align: center; margin-bottom: 0.5rem; }
+  h1 { font-family: 'DM Serif Display', serif; font-size: 1.8rem; text-align: center; margin-bottom: 0.25rem; }
+  .subtitle { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: #7a7060; text-align: center; margin-bottom: 2rem; }
+  label { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #7a7060; margin-bottom: 0.4rem; font-family: 'DM Mono', monospace; }
+  input[type="text"] {
+    width: 100%; padding: 0.6rem 0.85rem; border: 1.5px solid #ddd8cc;
+    border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 1.4rem;
+    background: #f4f1eb; color: #1a1612; margin-bottom: 1.25rem;
+    text-align: center; letter-spacing: 0.3em;
+  }
+  input[type="text"]:focus { outline: none; border-color: #1a1612; }
+  button {
+    min-height: 48px;
+    width: 100%; padding: 0.65rem; background: #1a1612; color: #f4f1eb;
+    border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  button:hover { background: #3a2e26; }
+  .error {
+    background: #ffe8e8; border: 1.5px solid rgb(200,100,120);
+    color: rgb(160,50,70); border-radius: 8px;
+    padding: 0.6rem 0.85rem; font-size: 0.82rem; margin-bottom: 1.25rem;
+  }
+  .back { text-align: center; margin-top: 1rem; font-size: 0.78rem; color: #7a7060; }
+  .back a { color: #1a1612; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔐</div>
+    <h1>Two-Factor Auth</h1>
+    <div class="subtitle">Open Bitwarden Authenticator and enter the 6-digit code</div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/verify">
+      <label>Authentication Code</label>
+      <input type="text" name="code" maxlength="6" placeholder="000000"
+             autofocus autocomplete="one-time-code" inputmode="numeric">
+      <button type="submit">Verify →</button>
+    </form>
+    <div class="back"><a href="/login">← Back to login</a></div>
+  </div>
+</body>
+</html>
