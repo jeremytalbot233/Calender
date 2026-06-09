@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
-from models import db, Event, Class, Theme, Note
+from models import db, Event, Class, Theme, Note, Template, Template
 import os, hashlib, hmac, pyotp, qrcode, io, base64
 from datetime import datetime, timedelta, date
 from functools import wraps
@@ -244,6 +244,60 @@ def delete_note(note_id):
     db.session.delete(n); db.session.commit(); return '', 204
 
 
+
+# ── Templates ─────────────────────────────────────────
+@app.route('/api/templates', methods=['GET'])
+@login_required
+def get_templates():
+    return jsonify([t.to_dict() for t in Template.query.order_by(Template.title).all()])
+
+@app.route('/api/templates', methods=['POST'])
+@login_required
+def create_template():
+    data = request.get_json()
+    t = Template(
+        title=data['title'],
+        cls=data.get('cls'),
+        type=data.get('type', 'assignment'),
+        notes=data.get('notes', '')
+    )
+    db.session.add(t); db.session.commit()
+    return jsonify(t.to_dict()), 201
+
+@app.route('/api/templates/<int:tmpl_id>', methods=['DELETE'])
+@login_required
+def delete_template(tmpl_id):
+    t = Template.query.get_or_404(tmpl_id)
+    db.session.delete(t); db.session.commit(); return '', 204
+
+
+# ── Bulk actions ──────────────────────────────────────
+@app.route('/api/events/bulk', methods=['POST'])
+@login_required
+def bulk_action():
+    data    = request.get_json()
+    action  = data.get('action')   # delete | complete | move
+    ids     = data.get('ids', [])
+    events  = Event.query.filter(Event.id.in_(ids)).all()
+
+    if action == 'delete':
+        for ev in events:
+            db.session.delete(ev)
+
+    elif action == 'complete':
+        for ev in events:
+            ev.completed = True
+
+    elif action == 'move':
+        new_date = data.get('date')
+        if new_date:
+            for ev in events:
+                ev.date = new_date
+
+    db.session.commit()
+    return jsonify({'ok': True, 'affected': len(events)})
+
+
 # ── iCal export ──────────────────────────────────────
 @app.route('/export/ical')
 @login_required
@@ -398,6 +452,73 @@ scheduler.add_job(
 )
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
+
+
+
+# ── Templates ─────────────────────────────────────────
+@app.route('/api/templates', methods=['GET'])
+@login_required
+def get_templates():
+    return jsonify([t.to_dict() for t in Template.query.order_by(Template.title).all()])
+
+@app.route('/api/templates', methods=['POST'])
+@login_required
+def create_template():
+    data = request.get_json()
+    t = Template(title=data['title'], cls=data.get('cls'), type=data.get('type','assignment'), notes=data.get('notes',''))
+    db.session.add(t); db.session.commit()
+    return jsonify(t.to_dict()), 201
+
+@app.route('/api/templates/<int:tmpl_id>', methods=['DELETE'])
+@login_required
+def delete_template(tmpl_id):
+    t = Template.query.get_or_404(tmpl_id)
+    db.session.delete(t); db.session.commit(); return '', 204
+
+
+# ── Bulk actions ──────────────────────────────────────
+@app.route('/api/events/bulk', methods=['POST'])
+@login_required
+def bulk_action():
+    data    = request.get_json()
+    action  = data.get('action')   # delete | complete | move
+    ids     = data.get('ids', [])
+    events  = Event.query.filter(Event.id.in_(ids)).all()
+
+    snapshots = [e.to_dict() for e in events]   # for undo
+
+    if action == 'delete':
+        for e in events: db.session.delete(e)
+    elif action == 'complete':
+        for e in events: e.completed = True
+    elif action == 'move':
+        new_date = data.get('date')
+        for e in events: e.date = new_date
+
+    db.session.commit()
+    return jsonify({'ok': True, 'snapshots': snapshots})
+
+
+# ── Undo ──────────────────────────────────────────────
+@app.route('/api/events/restore', methods=['POST'])
+@login_required
+def restore_events():
+    """Restore a list of event snapshots (for undo)."""
+    snapshots = request.get_json().get('snapshots', [])
+    for snap in snapshots:
+        existing = Event.query.get(snap['id'])
+        if existing:
+            existing.date=snap['date']; existing.title=snap['title']
+            existing.cls=snap['cls'];   existing.type=snap['type']
+            existing.completed=snap['completed']; existing.notes=snap['notes']
+        else:
+            db.session.add(Event(
+                id=snap['id'], date=snap['date'], title=snap['title'],
+                cls=snap['cls'], type=snap['type'], completed=snap['completed'],
+                notes=snap['notes'], recur=snap.get('recur','none'), recur_end=snap.get('recur_end','')
+            ))
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ── Helpers ──────────────────────────────────────────
