@@ -21,6 +21,7 @@
         <div class="header-actions no-print">
           <button class="btn" onclick="openThemeModal()">🎨 Customise</button>
           <button class="btn" onclick="openClassModal()">⚙️ Classes</button>
+          <button class="btn" onclick="openTemplateModal()">📋 Templates</button>
           <button class="btn" onclick="openYearModal()">📅 Year Settings</button>
           <a href="/logout" class="btn" style="text-decoration:none;">🔒 Logout</a>
         </div>
@@ -36,7 +37,9 @@
     <div class="legend no-print" id="legend"></div>
 
     <div class="controls no-print">
-      <button class="btn active" id="btnCal"  onclick="setView('cal')">📅 Calendar</button>
+      <button class="btn" id="undoBtn" onclick="undoLast()" title="Undo last action (Ctrl+Z)" style="display:none">↩ Undo</button>
+      <div class="divider"></div>
+      <button class="btn" id="btnCal"  onclick="setView('cal')">📅 Calendar</button>
       <button class="btn"        id="btnList" onclick="setView('list')">📋 List</button>
       <button class="btn"        id="btnWeek" onclick="setView('week')">📆 Week</button>
       <div class="divider"></div>
@@ -46,6 +49,7 @@
       <button class="btn" onclick="sendDigest()">📧 Send Digest</button>
       <div class="divider"></div>
       <button class="btn" onclick="openNoteModal()">📋 Add Grading Note</button>
+      <button class="btn" onclick="openTemplatesModal()">⭐ Templates</button>
     </div>
 
     <!-- Calendar view -->
@@ -129,6 +133,12 @@
 <div class="modal-backdrop hidden" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
   <div class="modal">
     <h2 id="modalTitle">Add Event</h2>
+    <div class="field" id="templatePickerField">
+      <label>Use Template</label>
+      <select id="templatePicker" onchange="applyTemplate(this.value)">
+        <option value="">— Start from scratch —</option>
+      </select>
+    </div>
     <div class="field"><label>Date</label><input type="date" id="fDate"></div>
     <div class="field"><label>Title</label><input type="text" id="fTitle" placeholder="e.g. AT1: Research & Ethics"></div>
     <div class="field">
@@ -285,6 +295,114 @@
     <div class="modal-actions" style="margin-top:1.25rem;">
       <button class="btn" onclick="closeYearModal()">Cancel</button>
       <button class="btn active" onclick="saveYearSettings()">Save & Rebuild</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ BULK ACTION BAR ══ -->
+<div id="bulkBar" class="bulk-bar hidden">
+  <span id="bulkCount" class="bulk-count">0 selected</span>
+  <button class="btn active" onclick="bulkComplete()">✓ Complete</button>
+  <button class="btn" onclick="openBulkMove()">📅 Move to…</button>
+  <button class="btn danger" onclick="bulkDelete()">🗑 Delete</button>
+  <button class="btn" onclick="clearSelection()">✕ Cancel</button>
+</div>
+
+<!-- ══ BULK MOVE DATE MODAL ══ -->
+<div class="modal-backdrop hidden" id="bulkMoveBackdrop" onclick="closeBulkMove(event)">
+  <div class="modal" style="width:320px;">
+    <h2>Move Events</h2>
+    <div class="field"><label>New Date</label><input type="date" id="bulkMoveDate"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('bulkMoveBackdrop').classList.add('hidden')">Cancel</button>
+      <button class="btn active" onclick="confirmBulkMove()">Move</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ UNDO TOAST ══ -->
+<div id="undoToast" class="undo-toast hidden">
+  <span id="undoMsg">Action undone</span>
+  <button onclick="doUndo()">↩ Undo</button>
+</div>
+
+<!-- ══ TEMPLATES MODAL ══ -->
+<div class="modal-backdrop hidden" id="templatesModalBackdrop" onclick="closeTemplatesModalBackdrop(event)">
+  <div class="modal" style="width:500px;">
+    <h2>⭐ Event Templates</h2>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;">Save common event types here and apply them when adding events.</p>
+    <div id="templatesList" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem;max-height:280px;overflow-y:auto;"></div>
+    <div style="border-top:1.5px solid var(--border);padding-top:1rem;">
+      <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem;">Save Current Event as Template</p>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+        <div class="field" style="flex:1;min-width:150px;margin:0;"><label>Title</label><input type="text" id="tmplTitle" placeholder="e.g. AT1 Draft Due"></div>
+        <div class="field" style="margin:0;">
+          <label>Class</label>
+          <select id="tmplCls" style="height:36px;"></select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Type</label>
+          <select id="tmplType" style="height:36px;">
+            <option value="assignment">Assignment</option>
+            <option value="formative">Formative</option>
+          </select>
+        </div>
+        <button class="btn active" onclick="saveTemplate()" style="height:36px;">Save</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:1rem;">
+      <button class="btn active" onclick="closeTemplatesModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ BULK ACTION BAR ══ -->
+<div id="bulkBar" class="bulk-bar hidden no-print">
+  <span id="bulkCount" class="bulk-count">0 selected</span>
+  <div class="bulk-actions">
+    <button class="btn active" onclick="bulkComplete()">✓ Complete</button>
+    <button class="btn" onclick="openBulkMove()">📅 Move</button>
+    <button class="btn danger" onclick="bulkDelete()">🗑 Delete</button>
+    <button class="btn" onclick="clearSelection()">✕ Cancel</button>
+  </div>
+</div>
+
+<!-- ══ BULK MOVE MODAL ══ -->
+<div class="modal-backdrop hidden" id="bulkMoveBackdrop" onclick="closeBulkMove(event)">
+  <div class="modal" style="width:320px;">
+    <h2>Move Events</h2>
+    <div class="field"><label>New Date</label><input type="date" id="bulkMoveDate"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeBulkMove()">Cancel</button>
+      <button class="btn active" onclick="bulkMove()">Move</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEMPLATE MODAL ══ -->
+<div class="modal-backdrop hidden" id="templateModalBackdrop" onclick="closeTemplateModalOnBackdrop(event)">
+  <div class="modal" style="width:500px;">
+    <h2>📋 Event Templates</h2>
+    <div id="templateListEl" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;max-height:280px;overflow-y:auto;"></div>
+    <div style="border-top:1.5px solid var(--border);padding-top:1rem;">
+      <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem;">Add New Template</p>
+      <div class="field"><label>Title</label><input type="text" id="tmplTitle" placeholder="e.g. AT1 Draft Due"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="field"><label>Default Class</label><select id="tmplCls"><option value="">No default</option></select></div>
+        <div class="field"><label>Type</label>
+          <select id="tmplType">
+            <option value="assignment">Assignment</option>
+            <option value="formative">Formative (Draft)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="tmplNotes" rows="2" placeholder="Optional…" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-body,DM Sans),sans-serif;font-size:0.85rem;background:var(--bg);color:var(--text);resize:vertical;"></textarea></div>
+      <button class="btn active" onclick="saveTemplate()" style="width:100%;">Save Template</button>
+    </div>
+    <div class="modal-actions" style="margin-top:1rem;">
+      <button class="btn active" onclick="closeTemplateModal()">Done</button>
     </div>
   </div>
 </div>
