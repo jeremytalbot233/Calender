@@ -874,9 +874,14 @@ function applyYearSettings() {
   names.forEach((name, i) => MONTHS.push([year, i, name]));
   TERMS.length = 0;
   if (theme['term1-start']) {
-    [1,2,3,4].forEach(n => {
-      const s = theme[`term${n}-start`]; const e = theme[`term${n}-end`];
-      if (s && e) TERMS.push({ name:`Term ${n}`, start:new Date(s), end:new Date(e) });
+      [1,2,3,4].forEach(n => {
+        const s = theme[`term${n}-start`]; const e = theme[`term${n}-end`];
+        if (s && e) {
+          // Parse as local date (not UTC) to avoid timezone shift
+          const [sy,sm,sd] = s.split('-').map(Number);
+          const [ey,em,ed] = e.split('-').map(Number);
+          TERMS.push({ name:`Term ${n}`, start:new Date(sy,sm-1,sd), end:new Date(ey,em-1,ed) });
+        }
     });
   } else {
     TERMS.push(
